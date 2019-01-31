@@ -333,6 +333,14 @@ OPTIONS
 
     vector<PerfShape> aggregate_perf_data;
     int rc = 0;
+    size_t total_parameter_count = 0;
+    size_t total_parameter_size = 0;
+    size_t total_result_count = 0;
+    size_t total_result_size = 0;
+    size_t total_constant_count = 0;
+    size_t total_constant_size = 0;
+    double bus_rate = 16e9;
+    double bus_transfer_time = 0;
     for (const string& model : models)
     {
         cout << "\n";
@@ -358,6 +366,10 @@ OPTIONS
 
                 cout << "\n---- Source Graph Statistics ----\n";
                 cout << "Total nodes: " << f->get_ops().size() << endl;
+                cout << "Parameters: " << f->get_parameters().size() << endl;
+                cout << "Results: " << f->get_results().size() << endl;
+                total_parameter_count += f->get_parameters().size();
+                total_result_count += f->get_parameters().size();
                 size_t total_constant_bytes = 0;
                 unordered_map<string, size_t> op_list;
                 set<string> type_list;
@@ -373,17 +385,36 @@ OPTIONS
 
                     if (op_name == "Constant")
                     {
-                        const Shape& shape = node->output(0).get_shape();
-                        size_t const_size = node->output(0).get_element_type().size();
-                        if (shape.size() == 0)
-                        {
-                            total_constant_bytes += const_size;
-                        }
-                        else
-                        {
-                            total_constant_bytes +=
-                                (const_size * shape_size(node->output(0).get_shape()));
-                        }
+                        total_constant_count++;
+                        const Shape& shape = node->get_outputs()[0].get_shape();
+                        size_t element_size = node->get_outputs()[0].get_element_type().size();
+                        double size =
+                            (shape.size() == 0 ? element_size : (element_size * shape_size(shape)));
+                        total_constant_bytes += static_cast<size_t>(size);
+                        total_constant_size += static_cast<size_t>(size);
+                    }
+                    else if (op_name == "Parameter")
+                    {
+                        const Shape& shape = node->get_outputs()[0].get_shape();
+                        size_t element_size = node->get_outputs()[0].get_element_type().size();
+                        double size =
+                            (shape.size() == 0 ? element_size : (element_size * shape_size(shape)));
+                        double time = size / bus_rate;
+                        NGRAPH_INFO << shape << ", " << static_cast<size_t>(size) << ", "
+                                    << node->get_outputs()[0].get_element_type().c_type_string()
+                                    << " time=" << time;
+                        bus_transfer_time += time;
+                        total_parameter_size = static_cast<size_t>(size);
+                    }
+                    else if (op_name == "Result")
+                    {
+                        const Shape& shape = node->get_outputs()[0].get_shape();
+                        size_t element_size = node->get_outputs()[0].get_element_type().size();
+                        double size =
+                            (shape.size() == 0 ? element_size : (element_size * shape_size(shape)));
+                        double time = size / bus_rate;
+                        bus_transfer_time += time;
+                        total_result_size = static_cast<size_t>(size);
                     }
                 }
                 cout << "--\n";
@@ -431,6 +462,11 @@ OPTIONS
         cout << "============================================================================\n";
         cout << "---- Aggregate over all models\n";
         cout << "============================================================================\n";
+        cout << "Parameters: " << total_parameter_count << endl;
+        cout << "Average Parameter: " << total_parameter_size / total_parameter_count << endl;
+        cout << "Results: " << total_result_count << endl;
+        cout << "Average Result: " << total_result_size / total_result_count << endl;
+        cout << "Bus Time: " << bus_transfer_time << endl;
         print_results(aggregate_perf_data, timing_detail);
     }
 
