@@ -27,7 +27,10 @@
 #include "ngraph/except.hpp"
 #include "ngraph/file_util.hpp"
 #include "ngraph/graph_util.hpp"
+#include "ngraph/pass/liveness.hpp"
 #include "ngraph/pass/manager.hpp"
+#include "ngraph/pass/memory_layout.hpp"
+#include "ngraph/pass/memory_visualize.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/runtime/backend.hpp"
 #include "ngraph/serializer.hpp"
@@ -198,6 +201,7 @@ int main(int argc, char** argv)
     int warmup_iterations = 1;
     bool copy_data = true;
     bool dot_file = false;
+    bool memory_info = false;
 
     for (size_t i = 1; i < argc; i++)
     {
@@ -221,6 +225,10 @@ int main(int argc, char** argv)
                 cout << "Invalid Argument\n";
                 failed = true;
             }
+        }
+        else if (arg == "-m" || arg == "--memory_info")
+        {
+            memory_info = true;
         }
         else if (arg == "-s" || arg == "--statistics")
         {
@@ -294,6 +302,7 @@ OPTIONS
         -b|--backend              Backend to use (default: CPU)
         -d|--directory            Directory to scan for models. All models are benchmarked.
         -i|--iterations           Iterations (default: 10)
+        -m|--memory_details       Generate information on model memory usage
         -s|--statistics           Display op stastics
         -v|--visualize            Visualize a model (WARNING: requires GraphViz installed)
         --timing_detail           Gather detailed timing
@@ -349,6 +358,19 @@ OPTIONS
 
                 pass::Manager pass_manager;
                 pass_manager.register_pass<pass::VisualizeTree>(model_file_name, nullptr, true);
+                pass_manager.run_passes(f);
+            }
+
+            if (memory_info)
+            {
+                shared_ptr<Function> f = deserialize(model);
+                auto model_file_name =
+                    ngraph::file_util::get_file_name(model) + std::string(".html");
+
+                pass::Manager pass_manager;
+                pass_manager.register_pass<pass::Liveness>();
+                pass_manager.register_pass<pass::MemoryLayout>(64);
+                pass_manager.register_pass<pass::MemoryVisualize>(model_file_name);
                 pass_manager.run_passes(f);
             }
 
