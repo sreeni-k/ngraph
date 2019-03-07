@@ -27,34 +27,34 @@ namespace ngraph
         class DynSlice : public Op
         {
         public:
-            /// \brief Constructs a tensor slice operation.
+            /// \brief Constructs a dynamic tensor slice operation.
             ///
             /// \param arg The tensor to be sliced.
-            /// \param begin The axiswise begin of the slice (inclusive).
-            /// \param end The axiswise end of the slice (exclusive).
+            /// \param lower_bounds The axiswise lower bounds of the slice (inclusive).
+            /// \param upper_bounds The axiswise upper bounds of the slice (exclusive).
             /// \param strides The slicing strides; for example, strides of `{n,m}` means to take
             ///                every nth row and every mth column of the input matrix.
-            Slice(const std::shared_ptr<Node>& arg,
-                  const std::shared_ptr<Node>& begin,
-                  const std::shared_ptr<Node>& end,
-                  const std::shared_ptr<Node>& strides);
+            DynSlice(const std::shared_ptr<Node>& arg,
+                     const std::shared_ptr<Node>& lower_bounds,
+                     const std::shared_ptr<Node>& upper_bounds,
+                     const std::shared_ptr<Node>& strides);
 
             /// \brief Constructs a tensor slice operation with unit strides; i.e., every element inside the bounding box will be copied to the output slice.
             ///
             /// \param arg The tensor to be sliced.
             /// \param begin The axiswise begin of the slice (inclusive).
             /// \param end The axiswise end of the slice (exclusive).
-            Slice(const std::shared_ptr<Node>& arg,
-                  const std::shared_ptr<Node>& begin,
-                  const std::shared_ptr<Node>& end)
+            DynSlice(const std::shared_ptr<Node>& arg,
+                     const std::shared_ptr<Node>& lower_bounds,
+                     const std::shared_ptr<Node>& upper_bounds);
 
             virtual std::shared_ptr<Node>
                 copy_with_new_args(const NodeVector& new_args) const override;
 
-            /// \return The inclusive begin coordinates.
-            const std::shared_ptr<Node>& get_begin() const { return m_begin; }
-            /// \return The exclusive end coordinates.
-            const std::shared_ptr<Node>& get_end() const { return m_end; }
+            /// \return The inclusive lower bounds node.
+            const std::shared_ptr<Node>& get_lower_bounds() const { return m_lower_bounds; }
+            /// \return The exclusive upper bounds node.
+            const std::shared_ptr<Node>& get_upper_bounds() const { return m_upper_bounds; }
             /// \return The slicing strides.
             const std::shared_ptr<Node>& get_strides() const { return m_strides; }
         protected:
@@ -62,8 +62,8 @@ namespace ngraph
                                            const NodeVector& deltas) override;
             void validate_and_infer_types() override;
 
-            std::shared_ptr<Node> m_begin;
-            std::shared_ptr<Node> m_end;
+            std::shared_ptr<Node> m_lower_bounds;
+            std::shared_ptr<Node> m_upper_bounds;
             std::shared_ptr<Node> m_strides;
         };
     }
