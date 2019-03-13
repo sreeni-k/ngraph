@@ -26,6 +26,7 @@ namespace ngraph
         /// \brief Tensor dynamic reshape operation.
         ///
         /// "Converts" an input tensor into a new shape with the same number of elements.
+        /// This op does not touch the actual data. If needed, use Transpose for that purpose.
         ///
         class DynReshape : public Op
         {
@@ -33,24 +34,22 @@ namespace ngraph
             /// \brief Constructs a dynamic reshape operation. This operation does not perform transpose.
             ///
             /// \param arg The tensor to be reshaped.
-            /// \param output_shape The tensor that defines output shape.
+            /// \param output_shape The node that defines output shape.
             ///        If the input shape is \f$(a_0,\dots,a_{k-1})\f$ then the output shape must
             ///        be of the form \f$(b_0,\dots,b_{j-1})\f$ where \f$\Pi(a_i) = \Pi(b_i)\f$.
             DynReshape(const std::shared_ptr<Node>& arg,
-                    const std::shared_ptr<Node>& output_shape);
+                       const std::shared_ptr<Node>& output_shape);
 
             void validate_and_infer_types() override;
 
             virtual std::shared_ptr<Node>
                 copy_with_new_args(const NodeVector& new_args) const override;
 
-            /// \return The shape of the output tensor.
-            const std::shared_ptr<Node>& get_output_shape() const { return m_output_shape; }
+            /// \return The node that generates the shape of the output tensor.
+            const std::shared_ptr<Node> get_output_shape() const { return get_argument(1); }
         protected:
             virtual void generate_adjoints(autodiff::Adjoints& adjoints,
                                            const NodeVector& deltas) override;
-
-            std::shared_ptr<Node> m_output_shape;
         };
     }
 }

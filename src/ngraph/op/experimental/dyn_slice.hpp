@@ -52,19 +52,15 @@ namespace ngraph
                 copy_with_new_args(const NodeVector& new_args) const override;
 
             /// \return The inclusive lower bounds node.
-            const std::shared_ptr<Node>& get_lower_bounds() const { return m_lower_bounds; }
+            const std::shared_ptr<Node> get_lower_bounds() const { return get_argument(1); }
             /// \return The exclusive upper bounds node.
-            const std::shared_ptr<Node>& get_upper_bounds() const { return m_upper_bounds; }
-            /// \return The slicing strides.
-            const std::shared_ptr<Node>& get_strides() const { return m_strides; }
+            const std::shared_ptr<Node> get_upper_bounds() const { return get_argument(2); }
+            /// \return The slicing strides node.
+            const std::shared_ptr<Node> get_strides() const { return get_argument(3); }
         protected:
             virtual void generate_adjoints(autodiff::Adjoints& adjoints,
                                            const NodeVector& deltas) override;
             void validate_and_infer_types() override;
-
-            std::shared_ptr<Node> m_lower_bounds;
-            std::shared_ptr<Node> m_upper_bounds;
-            std::shared_ptr<Node> m_strides;
         };
     }
 }
