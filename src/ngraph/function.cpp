@@ -87,6 +87,12 @@ void Function::init()
 
     traverse_nodes(this,
                    [&](shared_ptr<Node> node) {
+                       if (node->get_containing_function() != nullptr)
+                       {
+                           throw ngraph_error("Node " + node->get_friendly_name() +
+                                              " in multiple Functions");
+                       }
+                       node->set_containing_function(this);
                        if (node->is_parameter())
                        {
                            auto it = std::find(m_parameters.begin(), m_parameters.end(), node);

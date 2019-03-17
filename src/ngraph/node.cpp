@@ -524,3 +524,13 @@ void Node::validate_and_infer_elementwise_logical()
 
     set_output_type(0, element::boolean, args_pshape);
 }
+
+Function* Node::get_containing_function() const
+{
+    return m_containing_function;
+}
+
+void Node::set_containing_function(Function* f)
+{
+    m_containing_function = f;
+}

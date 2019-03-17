@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/pass/validate_graph.hpp"
+#include "ngraph/log.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -31,7 +32,8 @@ bool pass::ValidateGraph::run_on_module(vector<shared_ptr<Function>>& functions)
 void pass::ValidateGraph::validate_parameters(const Function& function)
 {
     auto parameters = function.get_parameters();
-    for (auto node : function.get_ops())
+    auto op_list = function.get_ops();
+    for (auto node : op_list)
     {
         shared_ptr<op::Parameter> p = dynamic_pointer_cast<op::Parameter>(node);
         if (nullptr != p)
@@ -42,6 +44,26 @@ void pass::ValidateGraph::validate_parameters(const Function& function)
             if (it == parameters.end())
             {
                 throw ngraph_error("Function references undeclared parameter");
+            }
+        }
+    }
+
+    // Check that all nodes user's are in the current Function
+    unordered_set<Node*> node_set;
+    for (const shared_ptr<Node>& n : op_list)
+    {
+        node_set.insert(n.get());
+    }
+    for (const shared_ptr<Node>& node : op_list)
+    {
+        for (const shared_ptr<Node>& user : node->get_users())
+        {
+            if (node_set.find(user.get()) == node_set.end())
+            {
+                stringstream ss;
+                ss << "Node " << node->get_name() << " user " << user->get_name()
+                   << " not in Function";
+                throw ngraph_error(ss);
             }
         }
     }

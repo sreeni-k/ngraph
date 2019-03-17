@@ -78,6 +78,8 @@ namespace ngraph
         // So Adjoints can call generate_adjoints
         friend class autodiff::Adjoints;
         friend class descriptor::Input;
+        friend class Function;
+
         friend void replace_node_users_arguments(std::shared_ptr<Node> target,
                                                  std::shared_ptr<Node> replacement);
         friend std::pair<std::shared_ptr<op::Result>, std::shared_ptr<op::Parameter>>
@@ -266,9 +268,12 @@ namespace ngraph
         bool operator<(const Node& other) const { return m_instance_id < other.m_instance_id; }
         static const size_t placement_invalid = -1;
 
+        Function* get_containing_function() const;
+
     protected:
         std::set<std::shared_ptr<Node>> m_control_dependencies;
         void set_output_size(size_t n);
+        void set_containing_function(Function*);
 
         const std::string m_node_type;
         size_t m_instance_id;
@@ -281,6 +286,7 @@ namespace ngraph
         std::unordered_map<Node*, autodiff::Adjoints> m_adjoint_map;
         Placement m_placement = Placement::DEFAULT;
         size_t m_placement_index = placement_invalid;
+        Function* m_containing_function = nullptr;
     };
 
     class NodeValidationFailure : public CheckFailure

@@ -48,7 +48,6 @@ namespace ngraph
         void init();
 
         virtual ~Function() {}
-    public:
         /// Return the number of outputs for this function.
         size_t get_output_size() const;
 

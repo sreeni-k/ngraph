@@ -25,6 +25,7 @@
 #include "ngraph/pass/liveness.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/memory_layout.hpp"
+#include "ngraph/pass/validate_graph.hpp"
 #include "ngraph/runtime/backend_manager.hpp"
 #include "ngraph/util.hpp"
 
@@ -41,6 +42,7 @@ runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& f
     pass_manager.register_pass<pass::LikeReplacement>();
     pass_manager.register_pass<pass::AssignLayout<DenseTensorLayout>>();
     pass_manager.register_pass<pass::Liveness>();
+    pass_manager.register_pass<pass::ValidateGraph>();
     pass_manager.run_passes(function);
 
     for (const shared_ptr<Node>& node : function->get_ordered_ops())
