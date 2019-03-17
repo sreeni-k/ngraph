@@ -154,6 +154,7 @@ void runtime::hybrid::rewrite_function(const shared_ptr<Function>& f,
     // Split functions to clusters of nodes that can be computed together
     vector<unordered_set<shared_ptr<Node>>> clusters = ::group_function_nodes_to_clusters(f);
 
+    NGRAPH_INFO;
     // unordered_map<shared_ptr<op::Parameter>, shared_ptr<op::Result>> map_parameter_to_result;
     unordered_map<shared_ptr<Node>, unordered_set<shared_ptr<Node>>*> map_node_to_cluster;
     for (auto& cluster : clusters)
@@ -175,6 +176,11 @@ void runtime::hybrid::rewrite_function(const shared_ptr<Function>& f,
                 NodeVector cluster_outputs;
                 for (auto node : cluster)
                 {
+                    NGRAPH_INFO << node->get_friendly_name();
+                    for (descriptor::Input& i : node->get_inputs())
+                    {
+                        NGRAPH_INFO << "    " << i.get_output().get_node()->get_friendly_name();
+                    }
                     for (auto input : node->get_arguments())
                     {
                         if (input->get_placement_index() == 0)
@@ -219,9 +225,6 @@ void runtime::hybrid::rewrite_function(const shared_ptr<Function>& f,
                 fc->set_placement_index(0);
                 for (size_t i = 0; i < function_call_outputs.size(); i++)
                 {
-                    // // First add a GetOutputElement to the ith output of the FunctionCall
-                    // auto goe = make_shared<GetOutpu
-
                     auto old_source = cluster_outputs[i];
                     auto new_source = fc;
                     auto target = function_call_outputs[i];
@@ -232,7 +235,7 @@ void runtime::hybrid::rewrite_function(const shared_ptr<Function>& f,
             }
         }
     }
-    ngraph::plot_graph(f, "f.png", node_modifiers);
+    NGRAPH_INFO;
 }
 
 void runtime::hybrid::node_modifiers(const Node& node, vector<string>& attributes)

@@ -85,12 +85,16 @@ void Function::init()
 {
     validate_nodes_and_infer_types();
 
+    NGRAPH_INFO << "***************************************";
     traverse_nodes(this,
                    [&](shared_ptr<Node> node) {
+                       NGRAPH_INFO << node->get_name();
                        if (node->get_containing_function() != nullptr)
                        {
-                           throw ngraph_error("Node " + node->get_friendly_name() +
-                                              " in multiple Functions");
+                           NGRAPH_INFO
+                               << "Node " + node->get_friendly_name() + " in multiple Functions";
+                           //    throw ngraph_error("Node " + node->get_friendly_name() +
+                           //                       " in multiple Functions");
                        }
                        node->set_containing_function(this);
                        if (node->is_parameter())
@@ -103,6 +107,7 @@ void Function::init()
                        }
                    },
                    true /*include control dependencies*/);
+    NGRAPH_INFO << "***************************************";
 }
 
 std::list<shared_ptr<Node>> Function::get_ordered_ops(bool include_control_deps) const

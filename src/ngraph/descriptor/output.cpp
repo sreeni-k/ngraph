@@ -36,7 +36,20 @@ void descriptor::Output::add_input(Input* input)
 
 void descriptor::Output::remove_input(Input* input)
 {
+    NGRAPH_INFO << m_node->get_friendly_name();
+    NGRAPH_INFO << input->get_node()->get_friendly_name();
+    for (auto i : m_inputs)
+    {
+        NGRAPH_INFO << "    " << m_node->get_friendly_name() << " -> "
+                    << i->get_node()->get_friendly_name();
+    }
     m_inputs.erase(input);
+    // for (auto i : m_inputs)
+    // {
+    //     NGRAPH_INFO << "    " << m_node->get_friendly_name() << " -> "
+    //                 << i->get_node()->get_friendly_name();
+    // }
+    NGRAPH_INFO;
 }
 
 shared_ptr<Node> descriptor::Output::get_node() const

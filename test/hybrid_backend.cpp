@@ -75,7 +75,7 @@ TEST(HYBRID, function_call)
     auto G0 = make_shared<ngraph::op::GetOutputElement>(H, 0);
     auto G1 = make_shared<ngraph::op::GetOutputElement>(H, 1);
     NodeVector out{G0, G1};
-    auto J = G0 + G1;
+    // auto J = G0 + G1;
     auto f = make_shared<Function>(out, ParameterVector{A, B, C});
 
     shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, shape);
@@ -90,10 +90,6 @@ TEST(HYBRID, function_call)
 
     auto exec = backend->compile(f);
     exec->call({r0, r1}, {a, b, c});
-
-    ngraph::pass::Manager pass_manager;
-    pass_manager.register_pass<ngraph::pass::VisualizeTree>("test.png");
-    pass_manager.run_passes(f);
 }
 
 TEST(HYBRID, abc)
@@ -108,9 +104,19 @@ TEST(HYBRID, abc)
     auto D = make_shared<op::Parameter>(element::f32, shape);
     auto t1 = A * B;
     auto t2 = t1 * D;
-    auto t3 = (t2 + C);
-    auto t4 = (t3 + A) * t1;
-    NodeVector result({t3, t4});
+    auto t3 = t2 + C;
+    auto t4 = t3 + A;
+    auto t5 = t4 * t1;
+    // A->set_friendly_name("A");
+    // B->set_friendly_name("B");
+    // C->set_friendly_name("B");
+    // D->set_friendly_name("D");
+    // t1->set_friendly_name("t1");
+    // t2->set_friendly_name("t2");
+    // t3->set_friendly_name("t3");
+    // t4->set_friendly_name("t4");
+    // t5->set_friendly_name("t5");
+    NodeVector result({t3, t5});
     auto f = make_shared<Function>(result, ParameterVector{A, B, C, D});
 
     shared_ptr<runtime::Backend> backend = runtime::Backend::create("H1");

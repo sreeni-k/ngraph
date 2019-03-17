@@ -60,7 +60,7 @@ void pass::ValidateGraph::validate_parameters(const Function& function)
             if (node_set.find(user.get()) == node_set.end())
             {
                 stringstream ss;
-                ss << "Node " << node->get_name() << " user " << user->get_name()
+                ss << "Node " << node->get_friendly_name() << " user " << user->get_friendly_name()
                    << " not in Function";
                 throw ngraph_error(ss);
             }
