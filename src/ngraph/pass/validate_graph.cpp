@@ -15,7 +15,6 @@
 //*****************************************************************************
 
 #include "ngraph/pass/validate_graph.hpp"
-#include "ngraph/log.hpp"
 
 using namespace std;
 using namespace ngraph;
