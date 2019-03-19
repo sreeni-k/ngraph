@@ -128,7 +128,7 @@ def convolution_ref(data_batch, filter, move_strides, filter_dilation, below_pad
     slice_tops = (0, 0) + tuple(np.clip(above_pads, None, 0))
     slices = list(map(lambda p: slice(
         p[0], p[1] if p[1] < 0 else None), zip(slice_bottoms, slice_tops)))
-    data_batch = data_batch[slices]
+    data_batch = data_batch[tuple(slices)]
 
     item_count = data_batch.shape[0]               # N
     ci_count = data_batch.shape[1]                 # Ci
@@ -369,6 +369,10 @@ tests = [
      (2, 3, 8, 8, 8),  (5, 3, 2, 3, 4),  (2, 3, 2),  (1, 1, 1),  (2, 1, 2),    (1, 2, 3),    (2, 3, 2),   "// "),
     ("convolution_3d_2item_large_5o3i_padded_strided_uneven_filter_uneven_data_dilation_filter_dilated_data_dilated",
      (2, 3, 8, 8, 8),  (5, 3, 2, 3, 4),  (2, 3, 2),  (3, 2, 2),  (2, 1, 2),    (1, 2, 3),    (2, 3, 2),   "// "),
+]
+
+tests = [
+    ("convolution_onnx", (1, 3, 224, 224), (1, 3, 7, 7), (2, 2), (1, 1), (3, 3), (3, 3), (1, 1), ""),
 ]
 
 
