@@ -31,7 +31,10 @@ def random_array_float_literals(length, seed=8086):
 
     for i in range(0, length):
         # generate numbers that can be exactly represented in binary
-        literal_n = np.float32(random.randint(-64, 64)) / 64.0
+        sig_bits = 6
+        range_bits = 2
+        literal_n = np.float32(random.randint(-pow(2, sig_bits-1),
+                                              pow(2, sig_bits-1))) / pow(2.0, sig_bits - range_bits)
         literals.append(str(literal_n))
 
     return literals
@@ -370,11 +373,6 @@ tests = [
     ("convolution_3d_2item_large_5o3i_padded_strided_uneven_filter_uneven_data_dilation_filter_dilated_data_dilated",
      (2, 3, 8, 8, 8),  (5, 3, 2, 3, 4),  (2, 3, 2),  (3, 2, 2),  (2, 1, 2),    (1, 2, 3),    (2, 3, 2),   "// "),
 ]
-
-tests = [
-    ("convolution_onnx", (1, 3, 224, 224), (1, 3, 7, 7), (2, 2), (1, 1), (3, 3), (3, 3), (1, 1), ""),
-]
-
 
 def main():
     assert(len(sys.argv) > 1)
