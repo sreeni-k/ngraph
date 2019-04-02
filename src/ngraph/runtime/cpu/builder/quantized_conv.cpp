@@ -67,6 +67,7 @@ namespace ngraph
                             // use conv channelwise (dim 1, mask=2^1) if dyn_scales is a vector
                             const int mask = scales_size == 1 ? 0 : 2;
                             conv_attr.set_output_scales(mask, dyn_scales);
+                            std::cout<<"SCALE " <<dyn_scales[0] <<std::endl;
                             mkldnn_emitter->build_convolution_forward<false>(
                                 conv_desc, conv_attr, executor::global_cpu_engine, conv_index);
                         }
@@ -74,6 +75,13 @@ namespace ngraph
                         cpu::mkldnn_utils::set_memory_ptr(ctx, deps[1], arg1_tensor);
                         cpu::mkldnn_utils::set_memory_ptr(ctx, deps[2], out0_tensor);
                         cpu::mkldnn_utils::mkldnn_invoke_primitive(ctx, conv_index);
+                  /*
+                        auto primitive = static_cast<mkldnn::memory*>(ctx->mkldnn_primitives[deps[1]]);
+                        int8_t* results  = (int8_t*)primitive->get_data_handle();
+                            for (size_t i = 0; i < 9; i++)
+                            { float temp = results [i];
+                                std::cout << temp << " , " <<std::endl;
+                            } */
                     };
                     functors.emplace_back(functor);
                 }
