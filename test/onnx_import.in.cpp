@@ -2393,5 +2393,5 @@ TEST(onnx_${BACKEND_NAME}, model_conv_resnetv24_conv0_fwd)
     Outputs outputs{execute(function, inputs, "${BACKEND_NAME}")};
 
     // The reference data was not computed accurately
-    EXPECT_TRUE(test::all_close_f(expected_outputs.front(), outputs.front()));
+    EXPECT_TRUE(test::all_close_f(expected_outputs.front(), outputs.front(), DEFAULT_FLOAT_TOLERANCE_BITS + 6, .01));
 }
