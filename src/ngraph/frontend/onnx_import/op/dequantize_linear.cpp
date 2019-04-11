@@ -22,9 +22,11 @@
 #include "exceptions.hpp"
 #include "ngraph/axis_set.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/convert.hpp"
 #include "ngraph/op/dequantize.hpp"
 #include "ngraph/shape.hpp"
 #include "quantize_linear.hpp"
+#include "utils/common.hpp"
 
 namespace ngraph
 {
@@ -38,65 +40,49 @@ namespace ngraph
                 {
                     NodeVector inputs{node.get_ng_inputs()};
                     std::shared_ptr<ngraph::Node> x = inputs.at(0);
-                    std::shared_ptr<ngraph::Node> y_scale = inputs.at(1);
-                    std::shared_ptr<ngraph::Node> y_zero_point = inputs.at(2);
-
-                    bool has_axis = false;
-                    Shape x_shape = x->get_shape();
-                    Shape y_scale_shape = y_scale->get_shape();
-                    Shape y_zero_point_shape = y_zero_point->get_shape();
-                    AxisSet axis_set{};
-
-                    try
+                    std::shared_ptr<ngraph::Node> x_scale = inputs.at(1);
+                    std::shared_ptr<ngraph::Node> zero_point;
+                    if (inputs.size() == 3 && !inputs.at(2)->is_null())
                     {
-                        std::int64_t axis = node.get_attribute_value<std::int64_t>("axis");
-                        axis_set = AxisSet{static_cast<std::size_t>(axis)};
-                        has_axis = true;
+                        zero_point = inputs.at(2);
                     }
-                    catch (const error::node::UnknownAttribute&)
-                    {
-                    }
-
-                    // Per `axis` quantization. Input ‘scale’ and ‘zero_point’ must be 1-D tensors
-                    if (has_axis)
-                    {
-                        std::size_t axis_dim_value = x_shape.at(*std::begin(axis_set));
-
-                        ASSERT_VALID_ARGUMENT(
-                            node,
-                            (y_scale_shape.size() == 1 && y_scale_shape.at(0) == axis_dim_value))
-                            << "y_scale must be 1D tensor with size equal to: " << axis_dim_value;
-                        ASSERT_VALID_ARGUMENT(node,
-                                              (y_zero_point_shape.size() == 1 &&
-                                               y_zero_point_shape.at(0) == axis_dim_value))
-                            << "y_zero_point must be 1D tensor with size equal to: "
-                            << axis_dim_value;
-                    }
-                    // Per tensor quantization. Input ‘scale’ and ‘zero_point’ must be scalars
                     else
                     {
-                        ASSERT_VALID_ARGUMENT(node, y_scale_shape.size() == 0)
-                            << "y_scale must be a scalar if no axis is provided.";
-                        ASSERT_VALID_ARGUMENT(node, y_zero_point_shape.size() == 0)
-                            << "y_zero_point must be a scalar if no axis is provided.";
+                        zero_point = common::make_constant_node(
+                            x->get_element_type(), Shape{}, std::vector<std::uint8_t>{0});
                     }
 
-                    if (x->get_element_type() != y_zero_point->get_element_type())
+                    Shape y_scale_shape = x_scale->get_shape();
+                    Shape y_zero_point_shape = zero_point->get_shape();
+
+                    // get axis twice with two default values to see if it is set
+                    int64_t axis_0{node.get_attribute_value<int64_t>("axis", 0)};
+                    int64_t axis_1{node.get_attribute_value<int64_t>("axis", 1)};
+
+                    AxisSet axes;
+                    // if axis attribute is set
+                    if (axis_0 == axis_1)
                     {
-                        // Currently only support Constant node.
-                        ASSERT_IS_SUPPORTED(node, y_zero_point->is_constant())
-                            << "doesn't support zero point input of other type than Constant.";
-
-                        auto y_zp_constant =
-                            std::static_pointer_cast<ngraph::op::Constant>(y_zero_point);
-
-                        y_zero_point = ngraph::op::Constant::create<std::uint8_t>(
-                            x->get_element_type(),
-                            y_zero_point->get_shape(),
-                            y_zp_constant->get_vector<std::uint8_t>());
+                        // positive axis
+                        if (axis_0 >= 0)
+                        {
+                            axes.insert(axis_0);
+                        }
+                        // negative axis
+                        else if (axis_0 < 0)
+                        {
+                            axes.insert(x->get_shape().size() + axis_0);
+                        }
                     }
+
+                    if (x->get_element_type() != zero_point->get_element_type())
+                    {
+                        zero_point = std::make_shared<ngraph::op::Convert>(zero_point,
+                                                                           x->get_element_type());
+                    }
+
                     return {std::make_shared<ngraph::op::Dequantize>(
-                        x, y_scale, y_zero_point, y_scale->get_element_type(), axis_set)};
+                        x, x_scale, zero_point, x_scale->get_element_type(), axes)};
                 }
 
             } // namespace set_1
