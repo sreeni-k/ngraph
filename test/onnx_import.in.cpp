@@ -2164,10 +2164,10 @@ namespace
 NGRAPH_TEST_P(${BACKEND_NAME}, lin_quant_model_param_test_incv3, model_incv3)
 {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/incv3_v2.onnx"));
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/intel_mkl_incv3_v3.onnx"));
 
-    Inputs inputs{read_binary_file2<float>(input_filename)};
-    Outputs expected_output{read_binary_file2<float>(output_filename)};
+    Inputs inputs{read_binary_file2<float>(file_util::path_join(TEST_FILES, input_filename))};
+    Outputs expected_output{read_binary_file2<float>(file_util::path_join(TEST_FILES, output_filename))};
     Outputs outputs{execute<float>(function, inputs, "${BACKEND_NAME}")};
 
     // TODO: For debug only - Remove this code before merging to master
