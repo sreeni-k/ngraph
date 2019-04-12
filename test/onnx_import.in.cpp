@@ -2097,7 +2097,7 @@ namespace
 NGRAPH_TEST_P(${BACKEND_NAME}, lin_quant_model_param_test, model_resnet50)
 {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/v7a.onnx"));
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/intel_mkl_resnet50_v8.onnx"));
 
     // file_util::path_join(TEST_FILES, "onnx/qlinearconv3d/y_zero_point.bin")
     Inputs inputs{read_binary_file2<float>(file_util::path_join(TEST_FILES, input_filename))};
