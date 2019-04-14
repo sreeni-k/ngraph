@@ -1361,14 +1361,28 @@ static json write(const Node& n, bool binary_constant_data)
         node["friendly_name"] = n.get_friendly_name();
     }
     node["op"] = n.description();
-    // TODO Multiple outputs
+
     json inputs = json::array();
     json control_deps = json::array();
     json outputs = json::array();
 
     for (auto& input : n.inputs())
     {
-        inputs.push_back(input.get_source_output().get_node()->get_name());
+        Output<Node> output = input.get_source_output();
+        const string& node_name = output.get_node()->get_name();
+        size_t index = output.get_index();
+        NGRAPH_INFO << index;
+        if (index > 0)
+        {
+            json obj;
+            obj["node"] = node_name;
+            obj["index"] = index;
+            inputs.push_back(obj);
+        }
+        else
+        {
+            inputs.push_back(node_name);
+        }
     }
     for (auto cdep : n.get_control_dependencies())
     {

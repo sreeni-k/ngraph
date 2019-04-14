@@ -190,6 +190,34 @@ TEST(serialize, constant)
     EXPECT_TRUE(found);
 }
 
+TEST(serialize, multi_output)
+{
+    auto etype = element::f32;
+    Shape input_shape{8, 3, 5, 7};
+    Shape channel_shape{input_shape.at(1)};
+    double epsilon = 0;
+
+    auto input = make_shared<op::Parameter>(etype, input_shape);
+    auto gamma = make_shared<op::Parameter>(etype, channel_shape);
+    auto beta = make_shared<op::Parameter>(etype, channel_shape);
+    auto bn = make_shared<op::BatchNormTraining>(input, gamma, beta, epsilon);
+
+    auto dummy = make_shared<op::Parameter>(etype, input_shape);
+    auto r0 = make_shared<op::Result>(dummy);
+    auto r1 = make_shared<op::Result>(dummy);
+    auto r2 = make_shared<op::Result>(dummy);
+
+    r0->input(0).replace_source_output(bn->output(0));
+    r1->input(0).replace_source_output(bn->output(1));
+    r2->input(0).replace_source_output(bn->output(2));
+
+    auto f = make_shared<Function>(ResultVector{r0, r1, r2}, ParameterVector{input, gamma, beta});
+    ofstream out("multi_output.json");
+    string s = serialize(f, 4);
+    out << s;
+    auto g = deserialize(s);
+}
+
 TEST(benchmark, serialize)
 {
     stopwatch timer;
