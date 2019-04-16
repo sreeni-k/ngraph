@@ -54,10 +54,6 @@ string to_cpp_string(T value)
 
 op::Constant::~Constant()
 {
-    if (m_data)
-    {
-        aligned_free(m_data);
-    }
 }
 
 vector<string> op::Constant::get_value_strings() const
@@ -164,6 +160,12 @@ shared_ptr<Node> op::Constant::copy_with_new_args(const NodeVector& new_args) co
     return make_shared<Constant>(m_element_type, m_shape, m_data);
 }
 
+shared_ptr<uint64_t> op::Constant::allocate_buffer(size_t size)
+{
+    return shared_ptr<uint64_t>(new uint64_t[(size / sizeof(uint64_t)) + 1],
+                                [](uint64_t* p) { delete[] p; });
+}
+
 shared_ptr<op::Constant> op::ScalarConstantLikeBase::as_constant() const
 {
     return std::make_shared<op::Constant>(m_element_type, m_shape, m_data);
@@ -177,9 +179,9 @@ std::shared_ptr<Node> op::ScalarConstantLike::copy_with_new_args(const NodeVecto
 void op::ScalarConstantLike::infer_element_type()
 {
     m_element_type = get_input_element_type(0);
-    if (nullptr == m_data)
+    if (m_data == nullptr)
     {
-        m_data = ngraph::aligned_alloc(m_element_type.size(), m_element_type.size());
+        m_data = allocate_buffer(m_element_type.size());
         write_values(std::vector<double>(1, m_value));
     }
 }
