@@ -2097,7 +2097,7 @@ namespace
 NGRAPH_TEST_P(${BACKEND_NAME}, lin_quant_model_param_test, model_resnet50)
 {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/intel_mkl_resnet50_v8.onnx"));
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/intel_mkl_resnet50_v9_try7.onnx"));
 
     // file_util::path_join(TEST_FILES, "onnx/qlinearconv3d/y_zero_point.bin")
     Inputs inputs{read_binary_file<float>(file_util::path_join(TEST_FILES, input_filename))};
@@ -2164,7 +2164,7 @@ namespace
 NGRAPH_TEST_P(${BACKEND_NAME}, lin_quant_model_param_test_incv3, model_incv3)
 {
     auto function =
-        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/intel_mkl_incv3_v3.onnx"));
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/intel_mkl_incv3_v4.onnx"));
 
     Inputs inputs{read_binary_file<float>(file_util::path_join(TEST_FILES, input_filename))};
     Outputs expected_output{read_binary_file<float>(file_util::path_join(TEST_FILES, output_filename))};
