@@ -71,6 +71,32 @@ runtime::nop::NOPExecutable::NOPExecutable(shared_ptr<Function> function,
     set_parameters_and_results(*function);
 }
 
+std::shared_ptr<ngraph::runtime::Tensor>
+    runtime::nop::NOPExecutable::create_input_tensor(size_t index)
+{
+    throw runtime_error("Unimplemented function NOPExecutable::create_input_tensor");
+}
+
+std::shared_ptr<ngraph::runtime::Tensor>
+    runtime::nop::NOPExecutable::create_output_tensor(size_t index)
+{
+    throw runtime_error("Unimplemented function NOPExecutable::create_input_tensor");
+}
+
+std::shared_ptr<ngraph::runtime::Tensor>
+    runtime::nop::NOPExecutable::create_input_tensor(size_t index,
+                                                     const std::shared_ptr<void>& memory_pointer)
+{
+    throw runtime_error("Unimplemented function NOPExecutable::create_input_tensor");
+}
+
+std::shared_ptr<ngraph::runtime::Tensor>
+    runtime::nop::NOPExecutable::create_output_tensor(size_t index,
+                                                      const std::shared_ptr<void>& memory_pointer)
+{
+    throw runtime_error("Unimplemented function NOPExecutable::create_input_tensor");
+}
+
 bool runtime::nop::NOPExecutable::call(const vector<shared_ptr<runtime::Tensor>>& outputs,
                                        const vector<shared_ptr<runtime::Tensor>>& inputs)
 {

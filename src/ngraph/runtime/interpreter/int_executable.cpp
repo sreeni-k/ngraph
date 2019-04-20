@@ -53,6 +53,30 @@ runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& f
     set_parameters_and_results(*function);
 }
 
+std::shared_ptr<ngraph::runtime::Tensor>
+    runtime::interpreter::INTExecutable::create_input_tensor(size_t index)
+{
+    throw runtime_error("Unimplemented function INTExecutable::create_input_tensor");
+}
+
+std::shared_ptr<ngraph::runtime::Tensor>
+    runtime::interpreter::INTExecutable::create_output_tensor(size_t index)
+{
+    throw runtime_error("Unimplemented function INTExecutable::create_input_tensor");
+}
+
+std::shared_ptr<ngraph::runtime::Tensor> runtime::interpreter::INTExecutable::create_input_tensor(
+    size_t index, const std::shared_ptr<void>& memory_pointer)
+{
+    throw runtime_error("Unimplemented function INTExecutable::create_input_tensor");
+}
+
+std::shared_ptr<ngraph::runtime::Tensor> runtime::interpreter::INTExecutable::create_output_tensor(
+    size_t index, const std::shared_ptr<void>& memory_pointer)
+{
+    throw runtime_error("Unimplemented function INTExecutable::create_input_tensor");
+}
+
 bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::Tensor>>& outputs,
                                                const vector<shared_ptr<runtime::Tensor>>& inputs)
 {

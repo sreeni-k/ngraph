@@ -38,6 +38,23 @@ public:
     Executable();
     virtual ~Executable();
 
+    /// \brief Create a tensor specific to this backend
+    /// \param index The position of the input tensor in the inputs
+    /// \returns shared_ptr to a new backend-specific tensor
+    virtual std::shared_ptr<ngraph::runtime::Tensor> create_input_tensor(size_t index) = 0;
+    virtual std::shared_ptr<ngraph::runtime::Tensor> create_output_tensor(size_t index) = 0;
+
+    /// \brief Create a tensor specific to this backend
+    /// \param index The position of the input tensor in the inputs
+    /// \param memory_pointer A pointer to a buffer used for this tensor. The size of the buffer
+    ///     must be sufficient to contain the tensor. The lifetime of the buffer is the
+    ///     responsibility of the caller.
+    /// \returns shared_ptr to a new backend-specific tensor
+    virtual std::shared_ptr<ngraph::runtime::Tensor>
+        create_input_tensor(size_t index, const std::shared_ptr<void>& memory_pointer) = 0;
+    virtual std::shared_ptr<ngraph::runtime::Tensor>
+        create_output_tensor(size_t index, const std::shared_ptr<void>& memory_pointer) = 0;
+
     /// \param outputs vector of runtime::Tensor used as outputs
     /// \param inputs vector of runtime::Tensor used as inputs
     /// \returns true if iteration is successful, false otherwise
