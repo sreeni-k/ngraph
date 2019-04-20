@@ -18,6 +18,7 @@
 
 #include <memory>
 
+#include "ngraph/deprecated.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/pass/pass_config.hpp"
 #include "ngraph/runtime/executable.hpp"
@@ -62,8 +63,9 @@ public:
     /// \param element_type The type of the tensor element
     /// \param shape The shape of the tensor
     /// \returns shared_ptr to a new backend-specific tensor
-    virtual std::shared_ptr<ngraph::runtime::Tensor>
-        create_tensor(const ngraph::element::Type& element_type, const Shape& shape) = 0;
+    NGRAPH_DEPRECATED("Use runtime::Executable::create_*_tensor")
+    virtual std::shared_ptr<ngraph::runtime::Tensor> create_tensor(
+        const ngraph::element::Type& element_type, const Shape& shape) = 0;
 
     /// \brief Create a tensor specific to this backend
     /// \param element_type The type of the tensor element
@@ -72,12 +74,14 @@ public:
     ///     must be sufficient to contain the tensor. The lifetime of the buffer is the
     ///     responsibility of the caller.
     /// \returns shared_ptr to a new backend-specific tensor
+    NGRAPH_DEPRECATED("Use runtime::Executable::create_*_tensor")
     virtual std::shared_ptr<ngraph::runtime::Tensor> create_tensor(
         const ngraph::element::Type& element_type, const Shape& shape, void* memory_pointer) = 0;
 
     /// \brief Create a tensor of C type T specific to this backend
     /// \param shape The shape of the tensor
     /// \returns shared_ptr to a new backend specific tensor
+    NGRAPH_DEPRECATED("Use runtime::Executable::create_*_tensor")
     template <typename T>
     std::shared_ptr<ngraph::runtime::Tensor> create_tensor(const Shape& shape)
     {

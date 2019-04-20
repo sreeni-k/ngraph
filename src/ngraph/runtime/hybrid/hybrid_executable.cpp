@@ -67,6 +67,30 @@ void runtime::hybrid::HybridExecutable::configure_passes(ngraph::pass::Manager& 
     }
 }
 
+shared_ptr<runtime::Tensor> runtime::hybrid::HybridExecutable::create_input_tensor(size_t index)
+{
+    throw runtime_error("Unimplemented function HybridExecutable::create_input_tensor");
+}
+
+shared_ptr<runtime::Tensor> runtime::hybrid::HybridExecutable::create_output_tensor(size_t index)
+{
+    throw runtime_error("Unimplemented function HybridExecutable::create_output_tensor");
+}
+
+shared_ptr<runtime::Tensor>
+    runtime::hybrid::HybridExecutable::create_input_tensor(size_t index,
+                                                           const shared_ptr<void>& memory_pointer)
+{
+    throw runtime_error("Unimplemented function HybridExecutable::create_input_tensor");
+}
+
+shared_ptr<runtime::Tensor>
+    runtime::hybrid::HybridExecutable::create_output_tensor(size_t index,
+                                                            const shared_ptr<void>& memory_pointer)
+{
+    throw runtime_error("Unimplemented function HybridExecutable::create_output_tensor");
+}
+
 bool runtime::hybrid::HybridExecutable::call(const vector<shared_ptr<runtime::Tensor>>& outputs,
                                              const vector<shared_ptr<runtime::Tensor>>& inputs)
 {

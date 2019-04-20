@@ -53,6 +53,15 @@ class ngraph::runtime::nop::NOPExecutable : public Executable
 {
 public:
     NOPExecutable(std::shared_ptr<Function> function, bool enable_performance_collection = false);
+
+    std::shared_ptr<ngraph::runtime::Tensor> create_input_tensor(size_t index) override;
+    std::shared_ptr<ngraph::runtime::Tensor> create_output_tensor(size_t index) override;
+
+    std::shared_ptr<ngraph::runtime::Tensor>
+        create_input_tensor(size_t index, const std::shared_ptr<void>& memory_pointer) override;
+    std::shared_ptr<ngraph::runtime::Tensor>
+        create_output_tensor(size_t index, const std::shared_ptr<void>& memory_pointer) override;
+
     bool call(const std::vector<std::shared_ptr<runtime::Tensor>>& outputs,
               const std::vector<std::shared_ptr<runtime::Tensor>>& inputs) override;
 };
