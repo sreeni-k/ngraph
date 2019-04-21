@@ -210,26 +210,38 @@ NGRAPH_TEST(${BACKEND_NAME}, abc)
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
+    auto exec = backend->compile(f);
+
     // Create some tensors for input/output
-    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, shape);
-    shared_ptr<runtime::Tensor> b = backend->create_tensor(element::f32, shape);
-    shared_ptr<runtime::Tensor> c = backend->create_tensor(element::f32, shape);
-    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::f32, shape);
+    NGRAPH_INFO << exec->get_parameters().size();
+    shared_ptr<runtime::Tensor> a = exec->create_input_tensor(0);
+    NGRAPH_INFO << exec->get_parameters().size();
+    shared_ptr<runtime::Tensor> b = exec->create_input_tensor(1);
+    NGRAPH_INFO << exec->get_parameters().size();
+    shared_ptr<runtime::Tensor> c = exec->create_input_tensor(2);
+    NGRAPH_INFO << exec->get_parameters().size();
+    shared_ptr<runtime::Tensor> result = exec->create_output_tensor(0);
+    NGRAPH_INFO << exec->get_parameters().size();
 
     copy_data(a, test::NDArray<float, 2>({{1, 2}, {3, 4}}).get_vector());
+    NGRAPH_INFO << exec->get_parameters().size();
     copy_data(b, test::NDArray<float, 2>({{5, 6}, {7, 8}}).get_vector());
+    NGRAPH_INFO << exec->get_parameters().size();
     copy_data(c, test::NDArray<float, 2>({{9, 10}, {11, 12}}).get_vector());
+    NGRAPH_INFO << exec->get_parameters().size();
 
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b, c});
+    exec->call_with_validate({result}, {a, b, c});
+    NGRAPH_INFO << exec->get_parameters().size();
     EXPECT_TRUE(test::all_close_f(read_vector<float>(result),
                                   (test::NDArray<float, 2>({{54, 80}, {110, 144}})).get_vector()));
 
-    handle->call_with_validate({result}, {b, a, c});
+    exec->call_with_validate({result}, {b, a, c});
+    NGRAPH_INFO;
     EXPECT_TRUE(test::all_close_f(read_vector<float>(result),
                                   (test::NDArray<float, 2>({{54, 80}, {110, 144}})).get_vector()));
 
-    handle->call_with_validate({result}, {a, c, b});
+    exec->call_with_validate({result}, {a, c, b});
+    NGRAPH_INFO;
     EXPECT_TRUE(test::all_close_f(read_vector<float>(result),
                                   (test::NDArray<float, 2>({{50, 72}, {98, 128}})).get_vector()));
 }

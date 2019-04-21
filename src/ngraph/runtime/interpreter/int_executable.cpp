@@ -56,13 +56,40 @@ runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& f
 std::shared_ptr<ngraph::runtime::Tensor>
     runtime::interpreter::INTExecutable::create_input_tensor(size_t index)
 {
-    throw runtime_error("Unimplemented function INTExecutable::create_input_tensor");
+    NGRAPH_INFO;
+    ngraph::ParameterVector inputs = get_parameters();
+    NGRAPH_INFO << inputs.size() << ", " << index;
+    if (index < inputs.size())
+    {
+        NGRAPH_INFO;
+        auto input = inputs[index];
+        NGRAPH_INFO;
+        auto type = input->get_output_element_type(0);
+        auto shape = input->get_output_shape(0);
+        return make_shared<runtime::HostTensor>(type, shape, nullptr, this);
+    }
+    else
+    {
+        throw invalid_argument("Input index out of range");
+    }
+    NGRAPH_INFO;
 }
 
 std::shared_ptr<ngraph::runtime::Tensor>
     runtime::interpreter::INTExecutable::create_output_tensor(size_t index)
 {
-    throw runtime_error("Unimplemented function INTExecutable::create_input_tensor");
+    ngraph::ResultVector outputs = get_results();
+    if (index < outputs.size())
+    {
+        auto type = outputs[index]->get_input_element_type(0);
+        auto shape = outputs[index]->get_input_shape(0);
+        NGRAPH_INFO << type.c_type_string() << ", " << shape;
+        return make_shared<runtime::HostTensor>(type, shape, nullptr, this);
+    }
+    else
+    {
+        throw invalid_argument("Output index out of range");
+    }
 }
 
 std::shared_ptr<ngraph::runtime::Tensor> runtime::interpreter::INTExecutable::create_input_tensor(

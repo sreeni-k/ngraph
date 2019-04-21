@@ -37,6 +37,7 @@ runtime::HostTensor::HostTensor(const ngraph::element::Type& element_type,
     , m_aligned_buffer_pool(nullptr)
 
 {
+    NGRAPH_INFO << "****************************************";
     m_descriptor->set_tensor_layout(
         std::make_shared<ngraph::descriptor::layout::DenseTensorLayout>(*m_descriptor));
 
@@ -44,10 +45,12 @@ runtime::HostTensor::HostTensor(const ngraph::element::Type& element_type,
 
     if (memory_pointer != nullptr)
     {
+        NGRAPH_INFO;
         m_aligned_buffer_pool = static_cast<char*>(memory_pointer);
     }
     else if (m_buffer_size > 0)
     {
+        NGRAPH_INFO << "allocate buffer " << m_buffer_size;
         size_t allocation_size = m_buffer_size + alignment;
         m_allocated_buffer_pool = static_cast<char*>(ngraph_malloc(allocation_size));
         m_aligned_buffer_pool = m_allocated_buffer_pool;
@@ -56,6 +59,7 @@ runtime::HostTensor::HostTensor(const ngraph::element::Type& element_type,
         {
             m_aligned_buffer_pool += (alignment - mod);
         }
+        NGRAPH_INFO << static_cast<void*>(m_aligned_buffer_pool);
     }
 }
 
@@ -65,6 +69,7 @@ runtime::HostTensor::HostTensor(const ngraph::element::Type& element_type,
                                 const Backend* parent)
     : HostTensor(element_type, shape, nullptr, name, parent)
 {
+    NGRAPH_INFO << "****************************************";
 }
 
 runtime::HostTensor::HostTensor(const ngraph::element::Type& element_type,
@@ -72,6 +77,7 @@ runtime::HostTensor::HostTensor(const ngraph::element::Type& element_type,
                                 const Backend* parent)
     : HostTensor(element_type, shape, nullptr, "external", parent)
 {
+    NGRAPH_INFO << "****************************************";
 }
 
 runtime::HostTensor::HostTensor(const ngraph::element::Type& element_type,
@@ -80,6 +86,7 @@ runtime::HostTensor::HostTensor(const ngraph::element::Type& element_type,
                                 const Backend* parent)
     : HostTensor(element_type, shape, memory_pointer, "external", parent)
 {
+    NGRAPH_INFO << "****************************************";
 }
 
 runtime::HostTensor::~HostTensor()
@@ -102,12 +109,16 @@ const char* runtime::HostTensor::get_data_ptr() const
 
 void runtime::HostTensor::write(const void* source, size_t tensor_offset, size_t n)
 {
+    NGRAPH_INFO << get_size_in_bytes() << ", " << n << ", " << m_buffer_size;
+
     if (tensor_offset + n > m_buffer_size)
     {
         throw out_of_range("write access past end of tensor");
     }
     char* target = get_data_ptr();
-    memcpy(&target[tensor_offset], source, n);
+    NGRAPH_INFO << tensor_offset;
+    (void)target;
+    memcpy(target, source, n);
 }
 
 void runtime::HostTensor::read(void* target, size_t tensor_offset, size_t n) const
@@ -116,6 +127,6 @@ void runtime::HostTensor::read(void* target, size_t tensor_offset, size_t n) con
     {
         throw out_of_range("read access past end of tensor");
     }
-    const char* source = get_data_ptr();
-    memcpy(target, &source[tensor_offset], n);
+    // const char* source = get_data_ptr();
+    // memcpy(target, &source[tensor_offset], n);
 }
