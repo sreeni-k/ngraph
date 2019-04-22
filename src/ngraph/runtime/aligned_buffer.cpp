@@ -50,3 +50,19 @@ runtime::AlignedBuffer::~AlignedBuffer()
         ngraph_free(m_allocated_buffer);
     }
 }
+
+std::shared_ptr<void> runtime::AlignedBuffer::make_aligned_ptr(size_t byte_size, size_t alignment)
+{
+    auto tmp = std::make_shared<AlignedBuffer>(byte_size, alignment);
+    // Using the aliasing constructor for shared_ptr. The first argument holds the managed
+    // object and the second, the pointer which is returned to the user of shared_ptr.
+    return std::shared_ptr<void>(tmp, tmp->get_ptr());
+}
+
+std::shared_ptr<void> runtime::AlignedBuffer::make_aligned_ptr(void* buffer)
+{
+    std::shared_ptr<void> tmp;
+    // Using the aliasing constructor for shared_ptr. The first argument holds the managed
+    // object and the second, the pointer which is returned to the user of shared_ptr.
+    return std::shared_ptr<void>(tmp, buffer);
+}

@@ -17,6 +17,7 @@
 #pragma once
 
 #include <cstddef>
+#include <memory>
 
 namespace ngraph
 {
@@ -36,9 +37,25 @@ public:
     AlignedBuffer();
     ~AlignedBuffer();
 
+    /// \return The size in bytes of the internal aligned buffer
     size_t size() const { return m_byte_size; }
+    /// \return A pointer at the supplied byte offset from the start in the internal buffer
     void* get_ptr(size_t offset) const { return m_aligned_buffer + offset; }
+    /// \return A pointer to the internal buffer
     void* get_ptr() const { return m_aligned_buffer; }
+    /// \brief Create a shared_ptr<void> which contains a buffer aligned in memory to an
+    /// alignment.
+    /// \param byte_size The size in bytes of the resulting buffer
+    /// \param alignment The alignment in bytes of the resulting buffer
+    /// \return Newly created shared pointer
+    static std::shared_ptr<void> make_aligned_ptr(size_t byte_size, size_t alignment);
+
+    /// \brief Create a shared_ptr<void> wrapped around the supplied buffer. The buffer is not
+    /// managed by the shared_ptr and must be allocated and deleted by the caller explicitly.
+    /// \param buffer A pointer to a memory buffer which will not be managed by the shared_ptr
+    /// \return Newly created shared pointer
+    static std::shared_ptr<void> make_aligned_ptr(void* buffer);
+
 private:
     AlignedBuffer(const AlignedBuffer&) = delete;
     AlignedBuffer(AlignedBuffer&&) = delete;
