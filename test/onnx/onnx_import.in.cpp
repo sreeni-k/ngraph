@@ -1462,7 +1462,8 @@ TEST(onnx_${BACKEND_NAME}, model_conv3d_dilated)
         file_util::path_join(SERIALIZED_ZOO, "onnx/conv3d_dilated_output0.bin"))};
 
     Outputs outputs{execute(function, inputs, "${BACKEND_NAME}")};
-    EXPECT_TRUE(test::all_close_f(expected_output.front(), outputs.front()));
+    EXPECT_TRUE(test::all_close_f(
+        expected_output.front(), outputs.front(), DEFAULT_FLOAT_TOLERANCE_BITS + 3, .001));
 }
 
 TEST(onnx_${BACKEND_NAME}, model_conv3d_dilated_strided)
@@ -1476,5 +1477,5 @@ TEST(onnx_${BACKEND_NAME}, model_conv3d_dilated_strided)
         file_util::path_join(SERIALIZED_ZOO, "onnx/conv3d_dilated_strided_output0.bin"))};
 
     Outputs outputs{execute(function, inputs, "${BACKEND_NAME}")};
-    EXPECT_TRUE(test::all_close_f(expected_output.front(), outputs.front()));
+    EXPECT_TRUE(test::all_close_f(expected_output.front(), outputs.front(), DEFAULT_FLOAT_TOLERANCE_BITS + 2, .001));
 }
