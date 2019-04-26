@@ -17,18 +17,28 @@
 #pragma once
 
 #include "ngraph/distributed.hpp"
+#include "ngraph/except.hpp"
 
 namespace ngraph
 {
-    namespace runtime
+    namespace distributed
     {
-        namespace reference
+        class NullDistributedInterface : public DistributedInterface
         {
-            template <typename T>
-            void allreduce(T* arg, T* out, const element::Type element_type, int count)
+            int get_size() override { return 0; }
+            int get_rank() override { return 0; }
+            void all_reduce(void* in,
+                            void* out,
+                            const element::Type& element_type,
+                            size_t count) override
             {
-                get_distributed_interface()->all_reduce(arg, out, element_type, count);
+                throw ngraph_error("Distributed Library not supported/mentioned");
             }
-        }
+
+            void broadcast(void* in, const element::Type& element_type, size_t count) override
+            {
+                throw ngraph_error("Distributed Library not supported/mentioned");
+            }
+        };
     }
 }
