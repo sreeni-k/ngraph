@@ -17,6 +17,7 @@
 #include <fstream>
 #include <functional>
 
+#include "ngraph/code_writer.hpp"
 #include "ngraph/cpio.hpp"
 #include "ngraph/file_util.hpp"
 #include "ngraph/graph_util.hpp"
@@ -312,10 +313,75 @@ static void serialize_to_cpio(ostream& out, shared_ptr<ngraph::Function> func, s
 void test_serialize(json& j, const string& path)
 {
     ofstream f(path);
-    for (auto& element : j.items())
+    CodeWriter out;
+    out.block_begin();
+    out << "\"file_info\": " << j["file_info"] << ",\n";
+    out << "\"version\": " << j["version"] << ",\n";
+    auto functions = j["functions"];
+    out << "\"functions\":\n[\n";
+    out.block_begin();
+    for (auto& func : functions)
     {
-        f << element.key() << " : " << element.value() << "\n";
+        out << "\"name\": " << func["name"] << ",\n";
+        auto ops = func["ops"];
+        NGRAPH_INFO << ops.size();
+        out << "\"ops\":\n[";
+        size_t op_index = 0;
+        for (auto& op : ops)
+        {
+            if (op_index++ != 0)
+            {
+                out << ",";
+            }
+            out << "\n{\n";
+            out.indent++;
+            out << "\"name\": " << op["name"] << ",\n";
+            out << "\"op\": " << op["op"] << "";
+            // out << "\"shape\": " << op["shape"] << ",\n";
+            // out << "\"element_type\": " << op["element_type"] << ",\n";
+            auto inputs = op["inputs"];
+            if (!inputs.empty())
+            {
+                out << ",\n\"inputs\": " << op["inputs"];
+            }
+            auto outputs = op["outputs"];
+            if (!outputs.empty())
+            {
+                out << ",\n\"outputs\": " << op["outputs"] << ",\n";
+                out << "\"output_shapes\": " << op["output_shapes"] << ",\n";
+                out << "\"output_types\": " << op["output_types"];
+            }
+            auto control_deps = op["control_deps"];
+            if (!control_deps.empty())
+            {
+                out << ",\n\"control_deps\": " << op["control_deps"];
+            }
+            auto attributes = op["attributes"];
+            if (!attributes.empty())
+            {
+                out << ",\n\"attributes\":\n{";
+                out.indent++;
+                size_t attr_index = 0;
+                for (auto& attr : attributes.items())
+                {
+                    if (attr_index++ != 0)
+                    {
+                        out << ",";
+                    }
+                    out << "\n\"" << attr.key() << "\": " << attr.value();
+                }
+                out.indent--;
+                out << "\n}";
+            }
+            out.indent--;
+            out << "\n}";
+        }
+        out << "\n]\n";
     }
+    out.block_end();
+    out << "]\n";
+    out.block_end();
+    f << out.get_code();
 }
 
 static string serialize(shared_ptr<ngraph::Function> func, size_t indent, bool binary_constant_data)
@@ -325,7 +391,7 @@ static string serialize(shared_ptr<ngraph::Function> func, size_t indent, bool b
     json version;
     version["major"] = 1;
     version["minor"] = 0;
-    j["verion"] = version;
+    j["version"] = version;
     j["file_info"] = "Intel nGraph serialized graph";
 
     json functions = json::array();
@@ -1537,7 +1603,7 @@ static json write(const Node& n, bool binary_constant_data)
     json inputs = json::array();
     json control_deps = json::array();
     json outputs = json::array();
-    json output_type = json::array();
+    json output_types = json::array();
 
     for (auto& input : n.inputs())
     {
@@ -1550,7 +1616,7 @@ static json write(const Node& n, bool binary_constant_data)
     for (auto& output : n.outputs())
     {
         outputs.push_back(output.get_tensor().get_name());
-        output_type.push_back(output.get_element_type().c_type_string());
+        output_types.push_back(output.get_element_type().c_type_string());
     }
 
     if (!inputs.empty())
@@ -1564,7 +1630,7 @@ static json write(const Node& n, bool binary_constant_data)
     if (!outputs.empty())
     {
         node["outputs"] = outputs;
-        node["output_type"] = output_type;
+        node["output_types"] = output_types;
     }
 
     json output_shapes = json::array();
@@ -1575,6 +1641,7 @@ static json write(const Node& n, bool binary_constant_data)
     node["output_shapes"] = output_shapes;
 
     string node_op = n.description();
+    json attr = json::object();
 #pragma GCC diagnostic push
 #pragma GCC diagnostic error "-Wswitch"
 #pragma GCC diagnostic error "-Wswitch-enum"
@@ -1590,21 +1657,21 @@ static json write(const Node& n, bool binary_constant_data)
     case OP_TYPEID::ArgMin:
     {
         auto tmp = dynamic_cast<const op::ArgMin*>(&n);
-        node["axis"] = tmp->get_reduction_axis();
-        node["index_element_type"] = write_element_type(tmp->get_element_type());
+        attr["axis"] = tmp->get_reduction_axis();
+        attr["index_element_type"] = write_element_type(tmp->get_element_type());
         break;
     }
     case OP_TYPEID::ArgMax:
     {
         auto tmp = dynamic_cast<const op::ArgMax*>(&n);
-        node["axis"] = tmp->get_reduction_axis();
-        node["index_element_type"] = write_element_type(tmp->get_element_type());
+        attr["axis"] = tmp->get_reduction_axis();
+        attr["index_element_type"] = write_element_type(tmp->get_element_type());
         break;
     }
     case OP_TYPEID::All:
     {
         auto tmp = dynamic_cast<const op::All*>(&n);
-        node["reduction_axes"] = tmp->get_reduction_axes();
+        attr["reduction_axes"] = tmp->get_reduction_axes();
         break;
     }
     case OP_TYPEID::AllReduce: { break;
@@ -1614,7 +1681,7 @@ static json write(const Node& n, bool binary_constant_data)
     case OP_TYPEID::Any:
     {
         auto tmp = dynamic_cast<const op::Any*>(&n);
-        node["reduction_axes"] = tmp->get_reduction_axes();
+        attr["reduction_axes"] = tmp->get_reduction_axes();
         break;
     }
     case OP_TYPEID::Asin: { break;
@@ -1624,23 +1691,23 @@ static json write(const Node& n, bool binary_constant_data)
     case OP_TYPEID::AvgPool:
     {
         auto tmp = dynamic_cast<const op::AvgPool*>(&n);
-        node["window_shape"] = tmp->get_window_shape();
-        node["window_movement_strides"] = tmp->get_window_movement_strides();
-        node["padding_below"] = tmp->get_padding_below();
-        node["padding_above"] = tmp->get_padding_above();
-        node["include_padding_in_avg_computation"] = tmp->get_include_padding_in_avg_computation();
-        node["pad_type"] = tmp->get_pad_type();
+        attr["window_shape"] = tmp->get_window_shape();
+        attr["window_movement_strides"] = tmp->get_window_movement_strides();
+        attr["padding_below"] = tmp->get_padding_below();
+        attr["padding_above"] = tmp->get_padding_above();
+        attr["include_padding_in_avg_computation"] = tmp->get_include_padding_in_avg_computation();
+        attr["pad_type"] = tmp->get_pad_type();
         break;
     }
     case OP_TYPEID::AvgPoolBackprop:
     {
         auto tmp = dynamic_cast<const op::AvgPoolBackprop*>(&n);
-        node["forward_arg_shape"] = tmp->get_forward_arg_shape();
-        node["window_shape"] = tmp->get_window_shape();
-        node["window_movement_strides"] = tmp->get_window_movement_strides();
-        node["padding_below"] = tmp->get_padding_below();
-        node["padding_above"] = tmp->get_padding_above();
-        node["include_padding_in_avg_computation"] = tmp->get_include_padding_in_avg_computation();
+        attr["forward_arg_shape"] = tmp->get_forward_arg_shape();
+        attr["window_shape"] = tmp->get_window_shape();
+        attr["window_movement_strides"] = tmp->get_window_movement_strides();
+        attr["padding_below"] = tmp->get_padding_below();
+        attr["padding_above"] = tmp->get_padding_above();
+        attr["include_padding_in_avg_computation"] = tmp->get_include_padding_in_avg_computation();
         break;
     }
     case OP_TYPEID::BatchMatMul: { break;
@@ -1648,26 +1715,26 @@ static json write(const Node& n, bool binary_constant_data)
     case OP_TYPEID::BatchNormTraining:
     {
         auto tmp = dynamic_cast<const op::BatchNormTraining*>(&n);
-        node["eps"] = tmp->get_eps_value();
+        attr["eps"] = tmp->get_eps_value();
         break;
     }
     case OP_TYPEID::BatchNormInference:
     {
         auto tmp = dynamic_cast<const op::BatchNormInference*>(&n);
-        node["eps"] = tmp->get_eps_value();
+        attr["eps"] = tmp->get_eps_value();
         break;
     }
     case OP_TYPEID::BatchNormTrainingBackprop:
     {
         auto tmp = dynamic_cast<const op::BatchNormTrainingBackprop*>(&n);
-        node["eps"] = tmp->get_eps_value();
+        attr["eps"] = tmp->get_eps_value();
         break;
     }
     case OP_TYPEID::Broadcast:
     {
         auto tmp = dynamic_cast<const op::Broadcast*>(&n);
-        node["axes"] = tmp->get_broadcast_axes();
-        node["shape"] = tmp->get_broadcast_shape();
+        attr["axes"] = tmp->get_broadcast_axes();
+        attr["shape"] = tmp->get_broadcast_shape();
         break;
     }
     case OP_TYPEID::BroadcastDistributed: { break;
@@ -1675,7 +1742,7 @@ static json write(const Node& n, bool binary_constant_data)
     case OP_TYPEID::BroadcastLike:
     {
         auto tmp = dynamic_cast<const op::BroadcastLike*>(&n);
-        node["initial_axes"] = tmp->get_initial_broadcast_axes();
+        attr["initial_axes"] = tmp->get_initial_broadcast_axes();
         break;
     }
     case OP_TYPEID::Ceiling: { break;
@@ -1683,7 +1750,7 @@ static json write(const Node& n, bool binary_constant_data)
     case OP_TYPEID::Concat:
     {
         auto tmp = dynamic_cast<const op::Concat*>(&n);
-        node["axis"] = tmp->get_concatenation_axis();
+        attr["axis"] = tmp->get_concatenation_axis();
         break;
     }
     case OP_TYPEID::Constant:
@@ -1691,81 +1758,81 @@ static json write(const Node& n, bool binary_constant_data)
         auto tmp = dynamic_cast<const op::Constant*>(&n);
         if (!binary_constant_data)
         {
-            node["value"] = tmp->get_value_strings();
+            attr["value"] = tmp->get_value_strings();
         }
-        node["shape"] = tmp->get_shape();
-        node["element_type"] = write_element_type(tmp->get_element_type());
+        attr["shape"] = tmp->get_shape();
+        attr["element_type"] = write_element_type(tmp->get_element_type());
         break;
     }
     case OP_TYPEID::Convert:
     {
         auto tmp = dynamic_cast<const op::Convert*>(&n);
-        node["target_type"] = write_element_type(tmp->get_convert_element_type());
+        attr["target_type"] = write_element_type(tmp->get_convert_element_type());
         break;
     }
     case OP_TYPEID::Convolution:
     {
         auto tmp = dynamic_cast<const op::Convolution*>(&n);
-        node["window_movement_strides"] = tmp->get_window_movement_strides();
-        node["window_dilation_strides"] = tmp->get_window_dilation_strides();
-        node["padding_below"] = tmp->get_padding_below();
-        node["padding_above"] = tmp->get_padding_above();
-        node["data_dilation_strides"] = tmp->get_data_dilation_strides();
-        node["pad_type"] = tmp->get_pad_type();
+        attr["window_movement_strides"] = tmp->get_window_movement_strides();
+        attr["window_dilation_strides"] = tmp->get_window_dilation_strides();
+        attr["padding_below"] = tmp->get_padding_below();
+        attr["padding_above"] = tmp->get_padding_above();
+        attr["data_dilation_strides"] = tmp->get_data_dilation_strides();
+        attr["pad_type"] = tmp->get_pad_type();
         break;
     }
     case OP_TYPEID::ConvolutionBackpropData:
     {
         auto tmp = dynamic_cast<const op::ConvolutionBackpropData*>(&n);
-        node["data_batch_shape"] = tmp->get_data_batch_shape();
-        node["window_movement_strides_forward"] = tmp->get_window_movement_strides_forward();
-        node["window_dilation_strides_forward"] = tmp->get_window_dilation_strides_forward();
-        node["padding_below_forward"] = tmp->get_padding_below_forward();
-        node["padding_above_forward"] = tmp->get_padding_above_forward();
-        node["data_dilation_strides_forward"] = tmp->get_data_dilation_strides_forward();
+        attr["data_batch_shape"] = tmp->get_data_batch_shape();
+        attr["window_movement_strides_forward"] = tmp->get_window_movement_strides_forward();
+        attr["window_dilation_strides_forward"] = tmp->get_window_dilation_strides_forward();
+        attr["padding_below_forward"] = tmp->get_padding_below_forward();
+        attr["padding_above_forward"] = tmp->get_padding_above_forward();
+        attr["data_dilation_strides_forward"] = tmp->get_data_dilation_strides_forward();
         break;
     }
     case OP_TYPEID::ConvolutionBackpropFilters:
     {
         auto tmp = dynamic_cast<const op::ConvolutionBackpropFilters*>(&n);
-        node["filters_shape"] = tmp->get_filters_shape();
-        node["window_movement_strides_forward"] = tmp->get_window_movement_strides_forward();
-        node["window_dilation_strides_forward"] = tmp->get_window_dilation_strides_forward();
-        node["padding_below_forward"] = tmp->get_padding_below_forward();
-        node["padding_above_forward"] = tmp->get_padding_above_forward();
-        node["data_dilation_strides_forward"] = tmp->get_data_dilation_strides_forward();
+        attr["filters_shape"] = tmp->get_filters_shape();
+        attr["window_movement_strides_forward"] = tmp->get_window_movement_strides_forward();
+        attr["window_dilation_strides_forward"] = tmp->get_window_dilation_strides_forward();
+        attr["padding_below_forward"] = tmp->get_padding_below_forward();
+        attr["padding_above_forward"] = tmp->get_padding_above_forward();
+        attr["data_dilation_strides_forward"] = tmp->get_data_dilation_strides_forward();
         break;
     }
     case OP_TYPEID::ConvolutionBias:
     {
         auto tmp = dynamic_cast<const op::ConvolutionBias*>(&n);
-        node["window_movement_strides"] = tmp->get_window_movement_strides();
-        node["window_dilation_strides"] = tmp->get_window_dilation_strides();
-        node["padding_below"] = tmp->get_padding_below();
-        node["padding_above"] = tmp->get_padding_above();
-        node["data_dilation_strides"] = tmp->get_data_dilation_strides();
+        attr["window_movement_strides"] = tmp->get_window_movement_strides();
+        attr["window_dilation_strides"] = tmp->get_window_dilation_strides();
+        attr["padding_below"] = tmp->get_padding_below();
+        attr["padding_above"] = tmp->get_padding_above();
+        attr["data_dilation_strides"] = tmp->get_data_dilation_strides();
         break;
     }
     case OP_TYPEID::ConvolutionBiasAdd:
     {
         auto tmp = dynamic_cast<const op::ConvolutionBiasAdd*>(&n);
-        node["window_movement_strides"] = tmp->get_window_movement_strides();
-        node["window_dilation_strides"] = tmp->get_window_dilation_strides();
-        node["padding_below"] = tmp->get_padding_below();
-        node["padding_above"] = tmp->get_padding_above();
-        node["data_dilation_strides"] = tmp->get_data_dilation_strides();
+        attr["window_movement_strides"] = tmp->get_window_movement_strides();
+        attr["window_dilation_strides"] = tmp->get_window_dilation_strides();
+        attr["padding_below"] = tmp->get_padding_below();
+        attr["padding_above"] = tmp->get_padding_above();
+        attr["data_dilation_strides"] = tmp->get_data_dilation_strides();
         break;
     }
     case OP_TYPEID::ConvolutionBiasBackpropFiltersBias:
     {
         auto tmp = dynamic_cast<const op::ConvolutionBiasBackpropFiltersBias*>(&n);
-        node["filters_shape"] = tmp->get_filters_shape();
-        node["bias_shape"] = tmp->get_bias_shape();
-        node["window_movement_strides_forward"] = tmp->get_window_movement_strides_forward();
-        node["window_dilation_strides_forward"] = tmp->get_window_dilation_strides_forward();
-        node["padding_below_forward"] = tmp->get_padding_below_forward();
-        node["padding_above_forward"] = tmp->get_padding_above_forward();
-        node["data_dilation_strides_forward"] = tmp->get_data_dilation_strides_forward();
+        attr["filters_shape"] = tmp->get_filters_shape();
+        attr["bias_shape"] = tmp->get_bias_shape();
+        attr["window_movement_strides_forward"] = tmp->get_window_movement_strides_forward();
+        attr["window_dilation_strides_forward"] = tmp->get_window_dilation_strides_forward();
+        attr["padding_below_forward"] = tmp->get_padding_below_forward();
+        attr["padding_above_forward"] = tmp->get_padding_above_forward();
+        attr["data_dilation_strides_forward"] = tmp->get_data_dilation_strides_forward();
         break;
     }
     case OP_TYPEID::Cos: { break;
@@ -1775,15 +1842,15 @@ static json write(const Node& n, bool binary_constant_data)
     case OP_TYPEID::Dequantize:
     {
         auto tmp = dynamic_cast<const op::Dequantize*>(&n);
-        node["type"] = write_element_type(tmp->get_element_type());
-        node["axes"] = tmp->get_axes();
+        attr["type"] = write_element_type(tmp->get_element_type());
+        attr["axes"] = tmp->get_axes();
         break;
     }
     case OP_TYPEID::DepthToSpace:
     {
         auto tmp = dynamic_cast<const op::DepthToSpace*>(&n);
-        node["type"] = write_element_type(tmp->get_element_type());
-        node["block_size"] = tmp->get_block_size();
+        attr["type"] = write_element_type(tmp->get_element_type());
+        attr["block_size"] = tmp->get_block_size();
         break;
     }
     case OP_TYPEID::Divide: { break;
@@ -1791,7 +1858,7 @@ static json write(const Node& n, bool binary_constant_data)
     case OP_TYPEID::Dot:
     {
         auto tmp = dynamic_cast<const op::Dot*>(&n);
-        node["reduction_axes_count"] = tmp->get_reduction_axes_count();
+        attr["reduction_axes_count"] = tmp->get_reduction_axes_count();
         break;
     }
     case OP_TYPEID::DynBroadcast: { break;
@@ -1817,7 +1884,7 @@ static json write(const Node& n, bool binary_constant_data)
     case OP_TYPEID::Gather:
     {
         auto tmp = dynamic_cast<const op::Gather*>(&n);
-        node["axis"] = tmp->get_axis();
+        attr["axis"] = tmp->get_axis();
         break;
     }
     case OP_TYPEID::GatherND: { break;
@@ -1825,16 +1892,16 @@ static json write(const Node& n, bool binary_constant_data)
     case OP_TYPEID::GetOutputElement:
     {
         auto tmp = dynamic_cast<const op::GetOutputElement*>(&n);
-        node["n"] = tmp->get_n();
+        attr["n"] = tmp->get_n();
         break;
     }
     case OP_TYPEID::GenerateMask:
     {
         auto tmp = dynamic_cast<const op::GenerateMask*>(&n);
-        node["output_shape"] = tmp->get_shape();
-        node["type"] = write_element_type(tmp->get_element_type());
-        node["seed"] = tmp->get_seed();
-        node["probability"] = tmp->get_probability();
+        attr["output_shape"] = tmp->get_shape();
+        attr["type"] = write_element_type(tmp->get_element_type());
+        attr["seed"] = tmp->get_seed();
+        attr["probability"] = tmp->get_probability();
         break;
     }
     case OP_TYPEID::Greater: { break;
@@ -1844,13 +1911,13 @@ static json write(const Node& n, bool binary_constant_data)
     case OP_TYPEID::GroupConvolution:
     {
         auto tmp = dynamic_cast<const op::GroupConvolution*>(&n);
-        node["window_movement_strides"] = tmp->get_window_movement_strides();
-        node["window_dilation_strides"] = tmp->get_window_dilation_strides();
-        node["padding_below"] = tmp->get_padding_below();
-        node["padding_above"] = tmp->get_padding_above();
-        node["data_dilation_strides"] = tmp->get_data_dilation_strides();
-        node["groups"] = tmp->get_groups();
-        node["pad_type"] = tmp->get_pad_type();
+        attr["window_movement_strides"] = tmp->get_window_movement_strides();
+        attr["window_dilation_strides"] = tmp->get_window_dilation_strides();
+        attr["padding_below"] = tmp->get_padding_below();
+        attr["padding_above"] = tmp->get_padding_above();
+        attr["data_dilation_strides"] = tmp->get_data_dilation_strides();
+        attr["groups"] = tmp->get_groups();
+        attr["pad_type"] = tmp->get_pad_type();
         break;
     }
     case OP_TYPEID::Less: { break;
@@ -1862,35 +1929,35 @@ static json write(const Node& n, bool binary_constant_data)
     case OP_TYPEID::LRN:
     {
         auto tmp = dynamic_cast<const op::LRN*>(&n);
-        node["alpha"] = tmp->get_alpha();
-        node["beta"] = tmp->get_beta();
-        node["bias"] = tmp->get_bias();
-        node["nsize"] = tmp->get_nsize();
+        attr["alpha"] = tmp->get_alpha();
+        attr["beta"] = tmp->get_beta();
+        attr["bias"] = tmp->get_bias();
+        attr["nsize"] = tmp->get_nsize();
         break;
     }
     case OP_TYPEID::Max:
     {
         auto tmp = dynamic_cast<const op::Max*>(&n);
-        node["reduction_axes"] = tmp->get_reduction_axes();
+        attr["reduction_axes"] = tmp->get_reduction_axes();
         break;
     }
     case OP_TYPEID::MaxPool:
     {
         auto tmp = dynamic_cast<const op::MaxPool*>(&n);
-        node["window_shape"] = tmp->get_window_shape();
-        node["window_movement_strides"] = tmp->get_window_movement_strides();
-        node["padding_below"] = tmp->get_padding_below();
-        node["padding_above"] = tmp->get_padding_above();
-        node["pad_type"] = tmp->get_pad_type();
+        attr["window_shape"] = tmp->get_window_shape();
+        attr["window_movement_strides"] = tmp->get_window_movement_strides();
+        attr["padding_below"] = tmp->get_padding_below();
+        attr["padding_above"] = tmp->get_padding_above();
+        attr["pad_type"] = tmp->get_pad_type();
         break;
     }
     case OP_TYPEID::MaxPoolBackprop:
     {
         auto tmp = dynamic_cast<const op::MaxPoolBackprop*>(&n);
-        node["window_shape"] = tmp->get_window_shape();
-        node["window_movement_strides"] = tmp->get_window_movement_strides();
-        node["padding_below"] = tmp->get_padding_below();
-        node["padding_above"] = tmp->get_padding_above();
+        attr["window_shape"] = tmp->get_window_shape();
+        attr["window_movement_strides"] = tmp->get_window_movement_strides();
+        attr["padding_below"] = tmp->get_padding_below();
+        attr["padding_above"] = tmp->get_padding_above();
         break;
     }
     case OP_TYPEID::Maximum: { break;
@@ -1898,7 +1965,7 @@ static json write(const Node& n, bool binary_constant_data)
     case OP_TYPEID::Min:
     {
         auto tmp = dynamic_cast<const op::Min*>(&n);
-        node["reduction_axes"] = tmp->get_reduction_axes();
+        attr["reduction_axes"] = tmp->get_reduction_axes();
         break;
     }
     case OP_TYPEID::Minimum: { break;
@@ -1914,8 +1981,8 @@ static json write(const Node& n, bool binary_constant_data)
     case OP_TYPEID::OneHot:
     {
         auto tmp = dynamic_cast<const op::OneHot*>(&n);
-        node["shape"] = write_partial_shape(tmp->get_output_partial_shape(0));
-        node["one_hot_axis"] = tmp->get_one_hot_axis();
+        attr["shape"] = write_partial_shape(tmp->get_output_partial_shape(0));
+        attr["one_hot_axis"] = tmp->get_one_hot_axis();
         break;
     }
     case OP_TYPEID::Or: { break;
@@ -1923,25 +1990,23 @@ static json write(const Node& n, bool binary_constant_data)
     case OP_TYPEID::Pad:
     {
         auto tmp = dynamic_cast<const op::Pad*>(&n);
-        node["padding_below"] = tmp->get_padding_below();
-        node["padding_above"] = tmp->get_padding_above();
-        node["pad_mode"] = tmp->get_pad_mode();
+        attr["padding_below"] = tmp->get_padding_below();
+        attr["padding_above"] = tmp->get_padding_above();
+        attr["pad_mode"] = tmp->get_pad_mode();
         break;
     }
     case OP_TYPEID::Parameter:
     {
         auto tmp = dynamic_cast<const op::Parameter*>(&n);
-        node["shape"] = write_partial_shape(tmp->get_output_partial_shape(0));
-        node["cacheable"] = tmp->get_cacheable();
-        node["element_type"] = write_element_type(tmp->get_element_type());
+        attr["cacheable"] = tmp->get_cacheable();
         break;
     }
     case OP_TYPEID::Passthrough:
     {
         auto tmp = dynamic_cast<const op::Passthrough*>(&n);
-        node["logical_type"] = tmp->logical_type();
-        node["language"] = tmp->language();
-        node["function"] = tmp->function();
+        attr["logical_type"] = tmp->logical_type();
+        attr["language"] = tmp->language();
+        attr["function"] = tmp->function();
         std::vector<json> outputs_js;
         for (const auto& output_shape : tmp->output_shapes())
         {
@@ -1950,7 +2015,7 @@ static json write(const Node& n, bool binary_constant_data)
             output_js["shape"] = write_partial_shape(std::get<1>(output_shape));
             outputs_js.emplace_back(std::move(output_js));
         }
-        node["output_shapes"] = std::move(outputs_js);
+        attr["output_shapes"] = std::move(outputs_js);
         break;
     }
     case OP_TYPEID::PRelu: { break;
@@ -1958,7 +2023,7 @@ static json write(const Node& n, bool binary_constant_data)
     case OP_TYPEID::Product:
     {
         auto tmp = dynamic_cast<const op::Product*>(&n);
-        node["reduction_axes"] = tmp->get_reduction_axes();
+        attr["reduction_axes"] = tmp->get_reduction_axes();
         break;
     }
     case OP_TYPEID::Power: { break;
@@ -1966,19 +2031,19 @@ static json write(const Node& n, bool binary_constant_data)
     case OP_TYPEID::Quantize:
     {
         auto tmp = dynamic_cast<const op::Quantize*>(&n);
-        node["type"] = write_element_type(tmp->get_element_type());
-        node["axes"] = tmp->get_axes();
-        node["round_mode"] = tmp->get_round_mode();
+        attr["type"] = write_element_type(tmp->get_element_type());
+        attr["axes"] = tmp->get_axes();
+        attr["round_mode"] = tmp->get_round_mode();
         break;
     }
     case OP_TYPEID::QuantizedAvgPool:
     {
         auto tmp = dynamic_cast<const op::QuantizedAvgPool*>(&n);
-        node["window_shape"] = tmp->get_window_shape();
-        node["window_movement_strides"] = tmp->get_window_movement_strides();
-        node["padding_below"] = tmp->get_padding_below();
-        node["padding_above"] = tmp->get_padding_above();
-        node["include_padding_in_avg_computation"] = tmp->get_include_padding_in_avg_computation();
+        attr["window_shape"] = tmp->get_window_shape();
+        attr["window_movement_strides"] = tmp->get_window_movement_strides();
+        attr["padding_below"] = tmp->get_padding_below();
+        attr["padding_above"] = tmp->get_padding_above();
+        attr["include_padding_in_avg_computation"] = tmp->get_include_padding_in_avg_computation();
         break;
     }
     case OP_TYPEID::QuantizedConvolutionBias: { break;
@@ -1992,11 +2057,11 @@ static json write(const Node& n, bool binary_constant_data)
     case OP_TYPEID::QuantizedConvolution:
     {
         auto tmp = dynamic_cast<const op::QuantizedConvolution*>(&n);
-        node["window_movement_strides"] = tmp->get_window_movement_strides();
-        node["window_dilation_strides"] = tmp->get_window_dilation_strides();
-        node["padding_below"] = tmp->get_padding_below();
-        node["padding_above"] = tmp->get_padding_above();
-        node["data_dilation_strides"] = tmp->get_data_dilation_strides();
+        attr["window_movement_strides"] = tmp->get_window_movement_strides();
+        attr["window_dilation_strides"] = tmp->get_window_dilation_strides();
+        attr["padding_below"] = tmp->get_padding_below();
+        attr["padding_above"] = tmp->get_padding_above();
+        attr["data_dilation_strides"] = tmp->get_data_dilation_strides();
         break;
     }
     case OP_TYPEID::QuantizedDotBias: { break;
@@ -2006,10 +2071,10 @@ static json write(const Node& n, bool binary_constant_data)
     case OP_TYPEID::QuantizedMaxPool:
     {
         auto tmp = dynamic_cast<const op::QuantizedMaxPool*>(&n);
-        node["window_shape"] = tmp->get_window_shape();
-        node["window_movement_strides"] = tmp->get_window_movement_strides();
-        node["padding_below"] = tmp->get_padding_below();
-        node["padding_above"] = tmp->get_padding_above();
+        attr["window_shape"] = tmp->get_window_shape();
+        attr["window_movement_strides"] = tmp->get_window_movement_strides();
+        attr["padding_below"] = tmp->get_padding_below();
+        attr["padding_above"] = tmp->get_padding_above();
         break;
     }
     case OP_TYPEID::Relu: { break;
@@ -2019,16 +2084,16 @@ static json write(const Node& n, bool binary_constant_data)
     case OP_TYPEID::ReplaceSlice:
     {
         auto tmp = dynamic_cast<const op::ReplaceSlice*>(&n);
-        node["lower_bounds"] = tmp->get_lower_bounds();
-        node["upper_bounds"] = tmp->get_upper_bounds();
-        node["strides"] = tmp->get_strides();
+        attr["lower_bounds"] = tmp->get_lower_bounds();
+        attr["upper_bounds"] = tmp->get_upper_bounds();
+        attr["strides"] = tmp->get_strides();
         break;
     }
     case OP_TYPEID::Reshape:
     {
         auto tmp = dynamic_cast<const op::Reshape*>(&n);
-        node["input_order"] = tmp->get_input_order();
-        node["output_shape"] = tmp->get_output_shape();
+        attr["input_order"] = tmp->get_input_order();
+        attr["output_shape"] = tmp->get_output_shape();
         break;
     }
     case OP_TYPEID::Result: { break;
@@ -2036,22 +2101,22 @@ static json write(const Node& n, bool binary_constant_data)
     case OP_TYPEID::Reverse:
     {
         auto tmp = dynamic_cast<const op::Reverse*>(&n);
-        node["reversed_axes"] = tmp->get_reversed_axes();
+        attr["reversed_axes"] = tmp->get_reversed_axes();
         break;
     }
     case OP_TYPEID::ReverseSequence:
     {
         auto tmp = dynamic_cast<const op::ReverseSequence*>(&n);
-        node["batch_axis"] = tmp->get_batch_axis();
-        node["sequence_axis"] = tmp->get_sequence_axis();
+        attr["batch_axis"] = tmp->get_batch_axis();
+        attr["sequence_axis"] = tmp->get_sequence_axis();
         break;
     }
     case OP_TYPEID::ScalarConstantLike:
     {
         auto tmp = dynamic_cast<const op::ScalarConstantLikeBase*>(&n);
         auto constant = tmp->as_constant();
-        node["value"] = constant->get_value_strings()[0];
-        node["element_type"] = write_element_type(constant->get_element_type());
+        attr["value"] = constant->get_value_strings()[0];
+        attr["element_type"] = write_element_type(constant->get_element_type());
         break;
     }
     case OP_TYPEID::Select: { break;
@@ -2071,16 +2136,16 @@ static json write(const Node& n, bool binary_constant_data)
     case OP_TYPEID::Slice:
     {
         auto tmp = dynamic_cast<const op::Slice*>(&n);
-        node["lower_bounds"] = tmp->get_lower_bounds();
-        node["upper_bounds"] = tmp->get_upper_bounds();
-        node["strides"] = tmp->get_strides();
+        attr["lower_bounds"] = tmp->get_lower_bounds();
+        attr["upper_bounds"] = tmp->get_upper_bounds();
+        attr["strides"] = tmp->get_strides();
         break;
     }
     case OP_TYPEID::SpaceToDepth:
     {
         auto tmp = dynamic_cast<const op::SpaceToDepth*>(&n);
-        node["type"] = write_element_type(tmp->get_element_type());
-        node["block_size"] = tmp->get_block_size();
+        attr["type"] = write_element_type(tmp->get_element_type());
+        attr["block_size"] = tmp->get_block_size();
         break;
     }
     case OP_TYPEID::Sqrt: { break;
@@ -2092,13 +2157,13 @@ static json write(const Node& n, bool binary_constant_data)
     case OP_TYPEID::Sum:
     {
         auto tmp = dynamic_cast<const op::Sum*>(&n);
-        node["reduction_axes"] = tmp->get_reduction_axes();
+        attr["reduction_axes"] = tmp->get_reduction_axes();
         break;
     }
     case OP_TYPEID::Softmax:
     {
         auto tmp = dynamic_cast<const op::Softmax*>(&n);
-        node["softmax_axes"] = tmp->get_axes();
+        attr["softmax_axes"] = tmp->get_axes();
         break;
     }
     case OP_TYPEID::Tan: { break;
@@ -2108,10 +2173,10 @@ static json write(const Node& n, bool binary_constant_data)
     case OP_TYPEID::TopK:
     {
         auto tmp = dynamic_cast<const op::TopK*>(&n);
-        node["top_k_axis"] = tmp->get_top_k_axis();
-        node["index_element_type"] = write_element_type(tmp->get_index_element_type());
-        node["k"] = tmp->get_k();
-        node["compute_max"] = tmp->get_compute_max();
+        attr["top_k_axis"] = tmp->get_top_k_axis();
+        attr["index_element_type"] = write_element_type(tmp->get_index_element_type());
+        attr["k"] = tmp->get_k();
+        attr["compute_max"] = tmp->get_compute_max();
         break;
     }
     case OP_TYPEID::Transpose: { break;
@@ -2120,6 +2185,7 @@ static json write(const Node& n, bool binary_constant_data)
     }
     }
 #pragma GCC diagnostic pop
+    node["attributes"] = attr;
 
     return node;
 }
