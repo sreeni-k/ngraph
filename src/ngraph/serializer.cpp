@@ -126,14 +126,6 @@ using namespace std;
 using json = nlohmann::json;
 using const_data_callback_t = shared_ptr<Node>(const string&, const element::Type&, const Shape&);
 
-static bool s_serialize_output_shapes_enabled =
-    (std::getenv("NGRAPH_SERIALIZER_OUTPUT_SHAPES") != nullptr);
-
-void ngraph::set_serialize_output_shapes(bool enable)
-{
-    s_serialize_output_shapes_enabled = enable;
-}
-
 // This expands the op list in op_tbl.hpp into a list of enumerations that look like this:
 // Abs,
 // Acos,
@@ -320,14 +312,26 @@ static void serialize_to_cpio(ostream& out, shared_ptr<ngraph::Function> func, s
 static string serialize(shared_ptr<ngraph::Function> func, size_t indent, bool binary_constant_data)
 {
     json j;
-    vector<json> functions;
+    // Write header info
+    json version;
+    version["major"] = 1;
+    version["minor"] = 0;
+    j["verion"] = version;
+    j["file_info"] = "Intel nGraph serialized graph";
+
+    json functions = json::array();
+
+    // Write functions
+    // vector<json> functions;
     traverse_functions(func, [&](shared_ptr<ngraph::Function> f) {
         functions.push_back(write(*f, binary_constant_data));
     });
-    for (auto it = functions.rbegin(); it != functions.rend(); it++)
-    {
-        j.push_back(*it);
-    }
+    // for (auto it = functions.rbegin(); it != functions.rend(); it++)
+    // {
+    //     functions.push_back(*it);
+    // }
+
+    j["functions"] = functions;
 
     string rc;
     if (indent == 0)
@@ -1512,6 +1516,7 @@ static json write(const Node& n, bool binary_constant_data)
     json inputs = json::array();
     json control_deps = json::array();
     json outputs = json::array();
+    json output_type = json::array();
 
     for (auto& input : n.inputs())
     {
@@ -1524,6 +1529,7 @@ static json write(const Node& n, bool binary_constant_data)
     for (auto& output : n.outputs())
     {
         outputs.push_back(output.get_tensor().get_name());
+        output_type.push_back(output.get_element_type().c_type_string());
     }
 
     if (!inputs.empty())
@@ -1537,17 +1543,15 @@ static json write(const Node& n, bool binary_constant_data)
     if (!outputs.empty())
     {
         node["outputs"] = outputs;
+        node["output_type"] = output_type;
     }
 
-    if (s_serialize_output_shapes_enabled)
+    json output_shapes = json::array();
+    for (size_t i = 0; i < n.get_output_size(); ++i)
     {
-        json output_shapes = json::array();
-        for (size_t i = 0; i < n.get_output_size(); ++i)
-        {
-            output_shapes.push_back(n.get_output_shape(i));
-        }
-        node["output_shapes"] = output_shapes;
+        output_shapes.push_back(n.get_output_shape(i));
     }
+    node["output_shapes"] = output_shapes;
 
     string node_op = n.description();
 #pragma GCC diagnostic push
