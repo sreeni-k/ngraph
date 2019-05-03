@@ -56,7 +56,7 @@ T get_or_default(nlohmann::json& j, const std::string& key, const T& default_val
 TEST(serialize, main)
 {
     // First create "f(A,B,C) = (A+B)*C".
-    Shape shape{128, 3, 240, 240};
+    Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
     auto C = make_shared<op::Parameter>(element::f32, shape);

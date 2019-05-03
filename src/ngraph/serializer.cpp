@@ -362,7 +362,12 @@ std::string ngraph::serialize(std::shared_ptr<ngraph::Function> func, size_t ind
 
 json read_header_info(json& j)
 {
-    NGRAPH_INFO;
+    auto it = j.find("functions");
+    if (it != j.end())
+    {
+        j = *it;
+    }
+    return j;
 }
 
 shared_ptr<ngraph::Function> ngraph::deserialize(istream& in)
