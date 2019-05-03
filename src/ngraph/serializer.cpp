@@ -309,6 +309,15 @@ static void serialize_to_cpio(ostream& out, shared_ptr<ngraph::Function> func, s
 }
 #endif
 
+void test_serialize(json& j, const string& path)
+{
+    ofstream f(path);
+    for (auto& element : j.items())
+    {
+        f << element.key() << " : " << element.value() << "\n";
+    }
+}
+
 static string serialize(shared_ptr<ngraph::Function> func, size_t indent, bool binary_constant_data)
 {
     json j;
@@ -342,12 +351,18 @@ static string serialize(shared_ptr<ngraph::Function> func, size_t indent, bool b
     {
         rc = j.dump(static_cast<int>(indent));
     }
+    test_serialize(j, "test_serialize.json");
     return rc;
 }
 
 std::string ngraph::serialize(std::shared_ptr<ngraph::Function> func, size_t indent)
 {
     return ::serialize(func, indent, false);
+}
+
+json read_header_info(json& j)
+{
+    NGRAPH_INFO;
 }
 
 shared_ptr<ngraph::Function> ngraph::deserialize(istream& in)
@@ -413,6 +428,7 @@ shared_ptr<ngraph::Function> ngraph::deserialize(const string& s)
     else
     {
         json js = json::parse(s);
+        js = read_header_info(js);
         unordered_map<string, shared_ptr<Function>> function_map;
         for (json func : js)
         {
