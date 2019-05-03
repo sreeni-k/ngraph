@@ -1272,15 +1272,21 @@ static shared_ptr<ngraph::Function>
             }
             case OP_TYPEID::Parameter:
             {
-                NGRAPH_INFO;
-                auto shape = output_shapes[0];
-                auto element_type = element_type_from_string(output_types[0]);
-                NGRAPH_INFO;
+                Shape shape;
+                element::Type element_type;
+                if (output_shapes.size() == 0)
+                {
+                    element_type = read_element_type(attrs["element_type"]);
+                    shape = attrs["shape"];
+                }
+                else
+                {
+                    element_type = element_type_from_string(output_types[0]);
+                    shape = output_shapes[0];
+                }
                 auto cacheable = get_or_default<bool>(attrs, "cacheable", false);
-                NGRAPH_INFO;
                 node =
                     make_shared<op::Parameter>(element_type, read_partial_shape(shape), cacheable);
-                NGRAPH_INFO;
                 break;
             }
             case OP_TYPEID::Passthrough:
