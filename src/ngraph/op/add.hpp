@@ -44,7 +44,6 @@ namespace ngraph
             static const AddKind node_kind;
 
             virtual const NodeKind* get_node_kind() override { return &node_kind; }
-
             /// \brief Constructs an addition operation.
             ///
             /// \param arg0 Node that produces the first input tensor.<br>

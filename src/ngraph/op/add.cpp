@@ -19,7 +19,6 @@
 using namespace std;
 using namespace ngraph;
 
-
 const op::AddKind op::Add::node_kind;
 
 std::shared_ptr<Node> op::AddKind::make_shared(const NodeVector& args)
