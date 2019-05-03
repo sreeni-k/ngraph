@@ -572,7 +572,6 @@ static shared_ptr<ngraph::Function>
     vector<string> func_parameters = func_js.at("parameters").get<vector<string>>();
     vector<string> func_result = func_js.at("result").get<vector<string>>();
     unordered_map<string, shared_ptr<Node>> node_map;
-    NGRAPH_INFO;
     for (json node_js : func_js.at("ops"))
     {
         try
@@ -584,12 +583,23 @@ static shared_ptr<ngraph::Function>
             vector<string> control_deps_inputs = get_value<vector<string>>(node_js, "control_deps");
             vector<string> outputs = get_value<vector<string>>(node_js, "outputs");
             vector<Shape> output_shapes = get_value<vector<Shape>>(node_js, "output_shapes");
-            vector<string> output_types = get_value<vector<string>>(node_js, "output_types");
+            vector<string> output_type_strings = get_value<vector<string>>(node_js, "output_types");
+            auto value_type = node_js["value_type"];
+            if (!value_type.empty())
+            {
+                output_type_strings.push_back(value_type["element_type"]);
+                output_shapes.push_back(get_value<Shape>(value_type, "shape"));
+            }
+
+            vector<element::Type> output_types;
+            for (const string& type_string : output_type_strings)
+            {
+                output_types.push_back(element_type_from_string(type_string));
+            }
             auto attrs = node_js;
             auto attr_it = node_js.find("attributes");
             if (attr_it != node_js.end())
             {
-                NGRAPH_INFO << "attrs found";
                 attrs = *attr_it;
             }
             shared_ptr<Node> node;
@@ -1281,7 +1291,7 @@ static shared_ptr<ngraph::Function>
                 }
                 else
                 {
-                    element_type = element_type_from_string(output_types[0]);
+                    element_type = output_types[0];
                     shape = output_shapes[0];
                 }
                 auto cacheable = get_or_default<bool>(attrs, "cacheable", false);
@@ -1291,12 +1301,10 @@ static shared_ptr<ngraph::Function>
             }
             case OP_TYPEID::Passthrough:
             {
-                std::vector<json> outputs_js = attrs.at("output_shapes");
                 std::vector<std::tuple<element::Type, PartialShape>> outputs;
-                for (auto output_js : outputs_js)
+                for (size_t i = 0; i < output_shapes.size(); i++)
                 {
-                    outputs.emplace_back(read_element_type(output_js.at("element_type")),
-                                         read_partial_shape(output_js.at("shape")));
+                    outputs.emplace_back(output_types[i], output_shapes[i]);
                 }
                 node = make_shared<op::Passthrough>(attrs.at("logical_type"),
                                                     attrs.at("language"),
@@ -2034,15 +2042,6 @@ static json write(const Node& n, bool binary_constant_data)
         attr["logical_type"] = tmp->logical_type();
         attr["language"] = tmp->language();
         attr["function"] = tmp->function();
-        std::vector<json> outputs_js;
-        for (const auto& output_shape : tmp->output_shapes())
-        {
-            json output_js;
-            output_js["element_type"] = write_element_type(std::get<0>(output_shape));
-            output_js["shape"] = write_partial_shape(std::get<1>(output_shape));
-            outputs_js.emplace_back(std::move(output_js));
-        }
-        attr["output_shapes"] = std::move(outputs_js);
         break;
     }
     case OP_TYPEID::PRelu: { break;
