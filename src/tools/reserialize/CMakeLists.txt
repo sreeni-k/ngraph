@@ -17,3 +17,5 @@
 add_executable(reserialize reserialize.cpp)
 add_dependencies(reserialize ngraph)
 target_link_libraries(reserialize ngraph)
+
+install(TARGETS reserialize RUNTIME DESTINATION ${NGRAPH_INSTALL_BIN})

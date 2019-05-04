@@ -35,7 +35,7 @@ void help()
 {
     cout << R"###(
 DESCRIPTION
-    Reserialize a serialized model
+     Reserialize a serialized model
 
 SYNOPSIS
         reserialize [-i|--input <input file>] [-o|--output <output file>]

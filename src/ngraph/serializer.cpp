@@ -167,6 +167,39 @@ T get_or_default(nlohmann::json& j, const std::string& key, const T& default_val
     return j.count(key) != 0 ? j.at(key).get<T>() : default_value;
 }
 
+static string join_to_size(const vector<string>& v)
+{
+    const size_t max_size = 100 - 6;
+    stringstream ss;
+    auto it = v.begin();
+    string tmp = *it;
+    it++;
+    for (; it != v.end(); ++it)
+    {
+        string s = *it;
+        if ((tmp.size() + s.size() + 2) < max_size)
+        {
+            tmp += ", ";
+            tmp += s;
+        }
+        else
+        {
+            if (ss.tellp() != 0)
+            {
+                ss << ",\n";
+            }
+            ss << tmp;
+            tmp = s;
+        }
+    }
+    if (ss.tellp() != 0)
+    {
+        ss << ",\n";
+    }
+    ss << tmp;
+    return ss.str();
+}
+
 static std::shared_ptr<ngraph::Function>
     read_function(const json&,
                   std::unordered_map<std::string, std::shared_ptr<Function>>&,
@@ -335,7 +368,6 @@ void test_serialize(json& j, const string& path)
     {
         out << "\"name\": " << func["name"] << ",\n";
         auto ops = func["ops"];
-        NGRAPH_INFO << ops.size();
         out << "\"ops\":\n[";
         size_t op_index = 0;
         for (auto& op : ops)
@@ -385,6 +417,32 @@ void test_serialize(json& j, const string& path)
             out.indent--;
             out << "\n}";
         }
+        out << "\n],\n";
+        out << "\"parameters\":\n[\n";
+        out.indent++;
+        {
+            auto parameters = func["parameters"];
+            vector<string> quoted_parameters;
+            for (const string& p : parameters)
+            {
+                quoted_parameters.push_back("\"" + p + "\"");
+            }
+            out << join_to_size(quoted_parameters);
+        }
+        out.indent--;
+        out << "\n],\n";
+        out << "\"result\":\n[\n";
+        out.indent++;
+        {
+            auto results = func["result"];
+            vector<string> quoted_results;
+            for (const string& result : results)
+            {
+                quoted_results.push_back("\"" + result + "\"");
+            }
+            out << join_to_size(quoted_results);
+        }
+        out.indent--;
         out << "\n]\n";
     }
     out.block_end();
