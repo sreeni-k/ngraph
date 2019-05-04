@@ -32,10 +32,12 @@ public:
         , m_pending_indent(true)
         , m_temporary_name_count(0)
         , m_indent("    ")
+        , m_current_line_length(0)
     {
     }
     std::string get_code() const { return m_ss.str(); }
     void set_indent(const std::string& s) { m_indent = s; }
+    size_t get_current_line_length() const { return m_current_line_length; }
     void operator+=(const std::string& s) { *this << s; }
     template <typename T>
     friend CodeWriter& operator<<(CodeWriter& out, const T& obj)
@@ -54,13 +56,16 @@ public:
                 if (out.m_pending_indent)
                 {
                     out.m_pending_indent = false;
+                    out.m_current_line_length = 0;
                     for (size_t i = 0; i < out.indent; i++)
                     {
                         out.m_ss << out.m_indent;
+                        out.m_current_line_length += out.m_indent.size();
                     }
                 }
             }
             out.m_ss << c;
+            out.m_current_line_length++;
         }
 
         return out;
@@ -95,4 +100,5 @@ private:
     bool m_pending_indent;
     size_t m_temporary_name_count;
     std::string m_indent;
+    size_t m_current_line_length;
 };

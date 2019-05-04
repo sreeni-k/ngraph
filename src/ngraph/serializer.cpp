@@ -353,6 +353,44 @@ static void serialize_to_cpio(ostream& out, shared_ptr<ngraph::Function> func, s
 }
 #endif
 
+void write_array(CodeWriter& out, json v)
+{
+    const size_t max_size = 100 - 6;
+    auto it = v.begin();
+    out << "[";
+    bool first = true;
+    for (auto it = v.begin(); it != v.end(); ++it)
+    {
+        if (first)
+        {
+            first = false;
+        }
+        else
+        {
+            out << ",";
+        }
+        string s;
+        if (it->is_string())
+        {
+            s = "\"" + string(*it) + "\"";
+        }
+        else
+        {
+            stringstream ss;
+            ss << *it;
+            s = ss.str();
+        }
+        size_t current_length = out.get_current_line_length();
+        if ((current_length + s.size()) > max_size)
+        {
+            // No room on this line for next item;
+            out << "\n";
+        }
+        out << s;
+    }
+    out << "]";
+}
+
 void test_serialize(json& j, const string& path)
 {
     ofstream f(path);
@@ -383,19 +421,36 @@ void test_serialize(json& j, const string& path)
             auto inputs = op["inputs"];
             if (!inputs.empty())
             {
-                out << ",\n\"inputs\": " << op["inputs"];
+                out << ",\n\"inputs\": ";
+                out.indent++;
+                write_array(out, op["inputs"]);
+                out.indent--;
             }
             auto outputs = op["outputs"];
             if (!outputs.empty())
             {
-                out << ",\n\"outputs\": " << op["outputs"] << ",\n";
-                out << "\"output_shapes\": " << op["output_shapes"] << ",\n";
-                out << "\"output_types\": " << op["output_types"];
+                out << ",\n\"outputs\": ";
+                out.indent++;
+                write_array(out, op["outputs"]);
+                out << ",\n";
+                out.indent--;
+                out << "\"output_shapes\": ";
+                out.indent++;
+                write_array(out, op["output_shapes"]);
+                out << ",\n";
+                out.indent--;
+                out << "\"output_types\": ";
+                out.indent++;
+                write_array(out, op["output_types"]);
+                out.indent--;
             }
             auto control_deps = op["control_deps"];
             if (!control_deps.empty())
             {
-                out << ",\n\"control_deps\": " << op["control_deps"];
+                out << ",\n\"control_deps\": ";
+                out.indent++;
+                write_array(out, op["control_deps"]);
+                out.indent--;
             }
             auto attributes = op["attributes"];
             if (!attributes.empty())
@@ -409,7 +464,18 @@ void test_serialize(json& j, const string& path)
                     {
                         out << ",";
                     }
-                    out << "\n\"" << attr.key() << "\": " << attr.value();
+                    auto value = attr.value();
+                    if (value.is_array())
+                    {
+                        out << "\n\"" << attr.key() << "\": ";
+                        out.indent++;
+                        write_array(out, value);
+                        out.indent--;
+                    }
+                    else
+                    {
+                        out << "\n\"" << attr.key() << "\": " << attr.value();
+                    }
                 }
                 out.indent--;
                 out << "\n}";
@@ -418,32 +484,16 @@ void test_serialize(json& j, const string& path)
             out << "\n}";
         }
         out << "\n],\n";
-        out << "\"parameters\":\n[\n";
+        out << "\"parameters\": ";
         out.indent++;
-        {
-            auto parameters = func["parameters"];
-            vector<string> quoted_parameters;
-            for (const string& p : parameters)
-            {
-                quoted_parameters.push_back("\"" + p + "\"");
-            }
-            out << join_to_size(quoted_parameters);
-        }
+        write_array(out, func["parameters"]);
+        out << ",\n";
         out.indent--;
-        out << "\n],\n";
-        out << "\"result\":\n[\n";
+        out << "\"result\": ";
         out.indent++;
-        {
-            auto results = func["result"];
-            vector<string> quoted_results;
-            for (const string& result : results)
-            {
-                quoted_results.push_back("\"" + result + "\"");
-            }
-            out << join_to_size(quoted_results);
-        }
+        write_array(out, func["result"]);
+        out << "\n";
         out.indent--;
-        out << "\n]\n";
     }
     out.block_end();
     out << "]\n";
