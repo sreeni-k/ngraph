@@ -2091,7 +2091,10 @@ static json write(const Node& n, bool binary_constant_data)
     case OP_TYPEID::Parameter:
     {
         auto tmp = dynamic_cast<const op::Parameter*>(&n);
-        attr["cacheable"] = tmp->get_cacheable();
+        if (tmp->get_cacheable())
+        {
+            attr["cacheable"] = tmp->get_cacheable();
+        }
         break;
     }
     case OP_TYPEID::Passthrough:
