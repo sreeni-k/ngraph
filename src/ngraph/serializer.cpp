@@ -167,39 +167,6 @@ T get_or_default(nlohmann::json& j, const std::string& key, const T& default_val
     return j.count(key) != 0 ? j.at(key).get<T>() : default_value;
 }
 
-static string join_to_size(const vector<string>& v)
-{
-    const size_t max_size = 100 - 6;
-    stringstream ss;
-    auto it = v.begin();
-    string tmp = *it;
-    it++;
-    for (; it != v.end(); ++it)
-    {
-        string s = *it;
-        if ((tmp.size() + s.size() + 2) < max_size)
-        {
-            tmp += ", ";
-            tmp += s;
-        }
-        else
-        {
-            if (ss.tellp() != 0)
-            {
-                ss << ",\n";
-            }
-            ss << tmp;
-            tmp = s;
-        }
-    }
-    if (ss.tellp() != 0)
-    {
-        ss << ",\n";
-    }
-    ss << tmp;
-    return ss.str();
-}
-
 static std::shared_ptr<ngraph::Function>
     read_function(const json&,
                   std::unordered_map<std::string, std::shared_ptr<Function>>&,
@@ -207,8 +174,10 @@ static std::shared_ptr<ngraph::Function>
 
 static json write(const ngraph::Function&, bool binary_constant_data);
 static json write(const ngraph::Node&, bool binary_constant_data);
-static string
-    serialize(shared_ptr<ngraph::Function> func, size_t indent, bool binary_constant_data);
+static string serialize(shared_ptr<ngraph::Function> func,
+                        size_t indent,
+                        bool compact_format,
+                        bool binary_constant_data);
 
 static json write_dimension(Dimension d)
 {
@@ -327,7 +296,7 @@ void ngraph::serialize(const string& path, shared_ptr<ngraph::Function> func, si
 
 void ngraph::serialize(ostream& out, shared_ptr<ngraph::Function> func, size_t indent)
 {
-    out << ::serialize(func, indent, false);
+    out << ::serialize(func, indent, true, false);
 }
 
 #if defined ENABLE_CPIO_FILE
@@ -391,9 +360,8 @@ void write_array(CodeWriter& out, json v)
     out << "]";
 }
 
-void test_serialize(json& j, const string& path)
+string format_json(json& j)
 {
-    ofstream f(path);
     CodeWriter out;
     out.set_indent("  ");
     out.block_begin();
@@ -498,10 +466,13 @@ void test_serialize(json& j, const string& path)
     out.block_end();
     out << "]\n";
     out.block_end();
-    f << out.get_code();
+    return out.get_code();
 }
 
-static string serialize(shared_ptr<ngraph::Function> func, size_t indent, bool binary_constant_data)
+static string serialize(shared_ptr<ngraph::Function> func,
+                        size_t indent,
+                        bool compact_format,
+                        bool binary_constant_data)
 {
     json j;
     // Write header info
@@ -526,7 +497,11 @@ static string serialize(shared_ptr<ngraph::Function> func, size_t indent, bool b
     j["functions"] = functions;
 
     string rc;
-    if (indent == 0)
+    if (compact_format)
+    {
+        rc = format_json(j);
+    }
+    else if (indent == 0)
     {
         rc = j.dump();
     }
@@ -534,13 +509,12 @@ static string serialize(shared_ptr<ngraph::Function> func, size_t indent, bool b
     {
         rc = j.dump(static_cast<int>(indent));
     }
-    test_serialize(j, "test_serialize.json");
     return rc;
 }
 
 std::string ngraph::serialize(std::shared_ptr<ngraph::Function> func, size_t indent)
 {
-    return ::serialize(func, indent, false);
+    return ::serialize(func, indent, true, false);
 }
 
 json read_header_info(json& j)
