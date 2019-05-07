@@ -343,6 +343,14 @@ void write_array(CodeWriter& out, json v)
         {
             s = "\"" + string(*it) + "\"";
         }
+        else if (it->is_number())
+        {
+            stringstream ss;
+            // Not sure why this cast it needed but without it a number like 0.05 becomes
+            // 0.05000000074505806. Both of these are the same number if floating point.
+            ss << static_cast<double>(*it);
+            s = ss.str();
+        }
         else
         {
             stringstream ss;
@@ -857,18 +865,38 @@ static shared_ptr<ngraph::Function>
             }
             case OP_TYPEID::Constant:
             {
+                NGRAPH_INFO;
                 auto type_node_js =
                     attrs.count("element_type") == 0 ? attrs.at("value_type") : attrs;
+                NGRAPH_INFO;
                 auto element_type = read_element_type(type_node_js.at("element_type"));
+                NGRAPH_INFO;
                 auto shape = type_node_js.at("shape");
+                NGRAPH_INFO;
                 auto value_it = attrs.find("value");
+                NGRAPH_INFO;
                 if (value_it != attrs.end())
                 {
+                    NGRAPH_INFO;
+                    // value could be an array of strings or an array of numbers, let's check
+                    auto tmp = *value_it;
+                    NGRAPH_INFO << tmp;
+                    if (tmp.is_number())
+                    {
+                        NGRAPH_INFO;
+                    }
+                    else if (tmp.is_string())
+                    {
+                        NGRAPH_INFO;
+                    }
+                    NGRAPH_INFO;
                     auto value = value_it->get<vector<string>>();
+                    NGRAPH_INFO;
                     node = make_shared<op::Constant>(element_type, shape, value);
                 }
                 else
                 {
+                    NGRAPH_INFO;
                     node = const_data_callback(node_name, element_type, shape);
                 }
                 break;
@@ -1875,7 +1903,25 @@ static json write(const Node& n, bool binary_constant_data)
         auto tmp = dynamic_cast<const op::Constant*>(&n);
         if (!binary_constant_data)
         {
-            attr["value"] = tmp->get_value_strings();
+            switch (tmp->get_element_type().get_type_enum())
+            {
+            case element::Type_t::undefined: throw runtime_error("Constant of undefined type");
+            case element::Type_t::dynamic: throw runtime_error("Constant of dynamic type");
+            case element::Type_t::boolean: attr["value"] = tmp->get_vector<char>(); break;
+            case element::Type_t::bf16: attr["value"] = tmp->get_vector<float>(); break;
+            case element::Type_t::f16: attr["value"] = tmp->get_vector<float>(); break;
+            case element::Type_t::f32: attr["value"] = tmp->get_vector<float>(); break;
+            case element::Type_t::f64: attr["value"] = tmp->get_vector<double>(); break;
+            case element::Type_t::i8: attr["value"] = tmp->get_vector<int8_t>(); break;
+            case element::Type_t::i16: attr["value"] = tmp->get_vector<int16_t>(); break;
+            case element::Type_t::i32: attr["value"] = tmp->get_vector<int32_t>(); break;
+            case element::Type_t::i64: attr["value"] = tmp->get_vector<int64_t>(); break;
+            case element::Type_t::u8: attr["value"] = tmp->get_vector<uint8_t>(); break;
+            case element::Type_t::u16: attr["value"] = tmp->get_vector<uint16_t>(); break;
+            case element::Type_t::u32: attr["value"] = tmp->get_vector<uint32_t>(); break;
+            case element::Type_t::u64: attr["value"] = tmp->get_vector<uint64_t>(); break;
+            }
+            // attr["value"] = tmp->get_value_strings();
         }
         attr["shape"] = tmp->get_shape();
         attr["element_type"] = write_element_type(tmp->get_element_type());

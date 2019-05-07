@@ -67,6 +67,15 @@ vector<string> op::Constant::get_value_strings() const
             rc.push_back(to_string(value));
         }
     }
+    else if (m_element_type == element::f16)
+    {
+        float temp = 0;
+        for (float16 value : get_vector<float16>())
+        {
+            temp = static_cast<float16>(value);
+            rc.push_back(to_cpp_string(temp));
+        }
+    }
     else if (m_element_type == element::bf16)
     {
         float temp = 0;
@@ -81,6 +90,7 @@ vector<string> op::Constant::get_value_strings() const
         for (float value : get_vector<float>())
         {
             rc.push_back(to_cpp_string(value));
+            NGRAPH_INFO << value << ", " << to_cpp_string(value);
         }
     }
     else if (m_element_type == element::f64)
