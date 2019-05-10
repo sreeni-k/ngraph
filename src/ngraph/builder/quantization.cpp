@@ -18,10 +18,12 @@
 
 #include "ngraph/builder/make_constant.hpp"
 #include "ngraph/builder/quantization.hpp"
+#include "ngraph/op/avg_pool.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/convert.hpp"
 #include "ngraph/op/max.hpp"
+#include "ngraph/op/max_pool.hpp"
 #include "ngraph/op/min.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "quantization_util.hpp"
@@ -136,7 +138,7 @@ namespace ngraph
                                                 const shared_ptr<Node>& min,
                                                 const shared_ptr<Node>& max)
         {
-            return make_shared<op::QuantizedAvgPool>(input,
+            return make_shared<op::AvgPool>(input,
                                                      window_shape,
                                                      window_movement_strides,
                                                      padding_below,
@@ -252,7 +254,7 @@ namespace ngraph
                                                 const shared_ptr<Node>& min,
                                                 const shared_ptr<Node>& max)
         {
-            return make_shared<op::QuantizedMaxPool>(
+            return make_shared<op::MaxPool>(
                 input, window_shape, window_movement_strides, padding_below, padding_above);
         }
 

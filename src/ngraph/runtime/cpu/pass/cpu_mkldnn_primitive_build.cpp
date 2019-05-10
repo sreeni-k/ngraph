@@ -29,14 +29,10 @@
 #include "ngraph/op/convolution.hpp"
 #include "ngraph/op/dequantize.hpp"
 #include "ngraph/op/dequantize.hpp"
-#include "ngraph/op/experimental/quantized_avg_pool.hpp"
-#include "ngraph/op/experimental/quantized_avg_pool.hpp"
 #include "ngraph/op/experimental/quantized_concat.hpp"
 #include "ngraph/op/experimental/quantized_conv.hpp"
 #include "ngraph/op/experimental/quantized_conv_bias.hpp"
 #include "ngraph/op/experimental/quantized_conv_relu.hpp"
-#include "ngraph/op/experimental/quantized_max_pool.hpp"
-#include "ngraph/op/experimental/quantized_max_pool.hpp"
 #include "ngraph/op/get_output_element.hpp"
 #include "ngraph/op/lrn.hpp"
 #include "ngraph/op/max_pool.hpp"
@@ -1390,25 +1386,9 @@ namespace ngraph
                 }
 
                 template <>
-                void MKLDNNPrimitiveBuildPass::CONSTRUCT_PRIMITIVE_BUILD_STRING_DECL(
-                    QuantizedMaxPool)
-                {
-                    construct_primitive_build_string_max_pool<QuantizedMaxPool, false>(
-                        mkldnn_emitter, node, construct_string, deps, index, desc_file);
-                }
-
-                template <>
                 void MKLDNNPrimitiveBuildPass::CONSTRUCT_PRIMITIVE_BUILD_STRING_DECL(AvgPool)
                 {
                     construct_primitive_build_string_avg_pool<AvgPool, false>(
-                        mkldnn_emitter, node, construct_string, deps, index, desc_file);
-                }
-
-                template <>
-                void MKLDNNPrimitiveBuildPass::CONSTRUCT_PRIMITIVE_BUILD_STRING_DECL(
-                    QuantizedAvgPool)
-                {
-                    construct_primitive_build_string_avg_pool<QuantizedAvgPool, false>(
                         mkldnn_emitter, node, construct_string, deps, index, desc_file);
                 }
 
@@ -1686,8 +1666,6 @@ static const PrimitiveBuildOpMap prim_build_dispatcher{
     {TI(LeakyRelu), &MKLDNNPrimitiveBuildPass::build_primitive<LeakyRelu>},
     {TI(Sigmoid), &MKLDNNPrimitiveBuildPass::build_primitive<Sigmoid>},
     {TI(SigmoidBackprop), &MKLDNNPrimitiveBuildPass::build_primitive<SigmoidBackprop>},
-    {TI(QuantizedMaxPool), &MKLDNNPrimitiveBuildPass::build_primitive<QuantizedMaxPool>},
-    {TI(QuantizedAvgPool), &MKLDNNPrimitiveBuildPass::build_primitive<QuantizedAvgPool>},
     {TI(Softmax), &MKLDNNPrimitiveBuildPass::build_primitive<Softmax>},
     {TI(Slice), &MKLDNNPrimitiveBuildPass::build_primitive<Slice>},
     {TI(ReplaceSlice), &MKLDNNPrimitiveBuildPass::build_primitive<ReplaceSlice>},
@@ -1739,11 +1717,7 @@ static const PrimitiveBuildStringConstructOpMap prim_build_string_construct_disp
      &MKLDNNPrimitiveBuildPass::construct_primitive_build_string<
          QuantizedConvolutionBiasSignedAdd>},
     {TI(MaxPool), &MKLDNNPrimitiveBuildPass::construct_primitive_build_string<MaxPool>},
-    {TI(QuantizedMaxPool),
-     &MKLDNNPrimitiveBuildPass::construct_primitive_build_string<QuantizedMaxPool>},
     {TI(AvgPool), &MKLDNNPrimitiveBuildPass::construct_primitive_build_string<AvgPool>},
-    {TI(QuantizedAvgPool),
-     &MKLDNNPrimitiveBuildPass::construct_primitive_build_string<QuantizedAvgPool>},
 };
 
 // Check if the node builds primitives at first iteration.
@@ -1773,9 +1747,7 @@ static bool in_new_map(const std::shared_ptr<Node>& node)
         std::dynamic_pointer_cast<ngraph::op::GroupConvolution>(node) ||
         std::dynamic_pointer_cast<ngraph::op::GroupConvolutionBias>(node) ||
         std::dynamic_pointer_cast<ngraph::op::MaxPool>(node) ||
-        std::dynamic_pointer_cast<ngraph::op::QuantizedMaxPool>(node) ||
-        std::dynamic_pointer_cast<ngraph::op::AvgPool>(node) ||
-        std::dynamic_pointer_cast<ngraph::op::QuantizedAvgPool>(node))
+        std::dynamic_pointer_cast<ngraph::op::AvgPool>(node))
     {
         return true;
     }
