@@ -290,49 +290,70 @@ string pass::VisualizeTree::add_attributes(shared_ptr<Node> node)
 string pass::VisualizeTree::get_attributes(shared_ptr<Node> node)
 {
     vector<string> attributes;
-    attributes.push_back("shape=box");
+    attributes.push_back("shape=\"none\"");
 
     if (node->is_output())
     {
-        attributes.push_back("color=crimson");
+        attributes.push_back("color=\"crimson\"");
         attributes.push_back("penwidth=1.5");
     }
     else
     {
-        attributes.push_back("color=black");
+        attributes.push_back("color=\"black\"");
     }
 
     // Construct the label attribute
     {
         stringstream label;
-        label << "label=\"" << node->get_name();
+        label << "label=<<table border=\"1\" cellborder=\"0\" cellpadding=\"0\" "
+                 "style=\"rounded\"><tr><td align=\"center\" colspan=\"3\">"
+              << node->get_name() << "</td></tr>";
 
-        static const char* nvtos = getenv("NGRAPH_VISUALIZE_TREE_OUTPUT_SHAPES");
-        if (nvtos != nullptr)
+        size_t index = 0;
+        for (auto input : node->inputs())
         {
-            // The shapes of the Outputs of a multi-output op
-            // will be printed for its corresponding `GetOutputElement`s
-            label << " " << (node->get_output_size() != 1 ? string("[skipped]")
-                                                          : vector_to_string(node->get_shape()));
+            label << "<tr>";
+            label << "<td>i" << index++ << "</td>";
+            label << "<td>" << input.get_element_type().c_type_string() << "</td>";
+            label << "<td>{" << join(input.get_shape()) << "}</td>";
+            label << "</tr>";
+        }
+        index = 0;
+        for (auto output : node->outputs())
+        {
+            label << "<tr>";
+            label << "<td>o" << index++ << "</td>";
+            label << "<td>" << output.get_element_type().c_type_string() << "</td>";
+            label << "<td>{" << join(output.get_shape()) << "}</td>";
+            label << "</tr>";
         }
 
-        static const char* nvtot = getenv("NGRAPH_VISUALIZE_TREE_OUTPUT_TYPES");
-        if (nvtot != nullptr)
-        {
-            // The types of the Outputs of a multi-output op
-            // will be printed for its corresponding `GetOutputElement`s
-            label << " "
-                  << ((node->get_output_size() != 1) ? string("[skipped]")
-                                                     : node->get_element_type().c_type_string());
-        }
+        // static const char* nvtos = getenv("NGRAPH_VISUALIZE_TREE_OUTPUT_SHAPES");
+        // if (nvtos != nullptr)
+        // {
+        //     // The shapes of the Outputs of a multi-output op
+        //     // will be printed for its corresponding `GetOutputElement`s
+        //     label << " " << (node->get_output_size() != 1 ? string("[skipped]")
+        //                                                   : vector_to_string(node->get_shape()));
+        // }
 
-        const Node& n = *node;
-        auto eh = m_ops_to_details.find(TI(n));
-        if (eh != m_ops_to_details.end())
-        {
-            eh->second(n, label);
-        }
-        label << "\"";
+        // static const char* nvtot = getenv("NGRAPH_VISUALIZE_TREE_OUTPUT_TYPES");
+        // if (nvtot != nullptr)
+        // {
+        //     // The types of the Outputs of a multi-output op
+        //     // will be printed for its corresponding `GetOutputElement`s
+        //     label << " "
+        //           << ((node->get_output_size() != 1) ? string("[skipped]")
+        //                                              : node->get_element_type().c_type_string());
+        // }
+
+        // const Node& n = *node;
+        // auto eh = m_ops_to_details.find(TI(n));
+        // if (eh != m_ops_to_details.end())
+        // {
+        //     eh->second(n, label);
+        // }
+        label << "</table>>";
         attributes.push_back(label.str());
     }
 
@@ -352,7 +373,7 @@ string pass::VisualizeTree::get_file_ext()
     const char* format = getenv("NGRAPH_VISUALIZE_TREE_OUTPUT_FORMAT");
     if (!format)
     {
-        format = "dot";
+        format = "svg";
     }
 
     if (format[0] == '.')
@@ -366,6 +387,9 @@ string pass::VisualizeTree::get_file_ext()
 void pass::VisualizeTree::render() const
 {
     auto dot_file = m_name + ".dot";
+    NGRAPH_INFO << m_name;
+    NGRAPH_INFO << dot_file;
+    NGRAPH_INFO << m_dot_only;
     ofstream out(dot_file);
     if (out)
     {
@@ -381,6 +405,7 @@ void pass::VisualizeTree::render() const
             ss << "dot -T" << get_file_ext() << " " << dot_file << " -o" << m_name << "."
                << get_file_ext();
             auto cmd = ss.str();
+            NGRAPH_INFO << cmd;
             auto stream = popen(cmd.c_str(), "r");
             if (stream)
             {

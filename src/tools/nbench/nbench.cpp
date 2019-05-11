@@ -319,11 +319,17 @@ OPTIONS
             if (visualize)
             {
                 shared_ptr<Function> f = deserialize(model);
-                auto model_file_name = ngraph::file_util::get_file_name(model) + std::string(".") +
+                string name = file_util::get_file_name(model);
+                string ext = file_util::get_file_ext(model);
+                name = name.substr(0, name.size() - ext.size());
+                NGRAPH_INFO << name;
+                NGRAPH_INFO << ext;
+                auto model_file_name = name + std::string(".") +
                                        (dot_file ? "dot" : pass::VisualizeTree::get_file_ext());
+                NGRAPH_INFO << model_file_name;
 
                 pass::Manager pass_manager;
-                pass_manager.register_pass<pass::VisualizeTree>(model_file_name, nullptr, true);
+                pass_manager.register_pass<pass::VisualizeTree>(name, nullptr, false);
                 pass_manager.run_passes(f);
             }
 
