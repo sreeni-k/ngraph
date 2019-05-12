@@ -215,7 +215,7 @@ bool pass::VisualizeTree::run_on_module(vector<shared_ptr<Function>>& functions)
 
         size_t fake_node_ctr = 0;
 
-        traverse_nodes(f, [&](shared_ptr<Node> node) {
+        traverse_nodes(f, [&](const shared_ptr<Node>& node) {
             size_t arg_index = 0;
             for (auto arg : node->get_arguments())
             {

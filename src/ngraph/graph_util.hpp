@@ -43,12 +43,12 @@ namespace ngraph
         class Parameter;
     }
 
-    void traverse_nodes(const std::shared_ptr<const Function> p,
-                        std::function<void(std::shared_ptr<Node>)> f,
+    void traverse_nodes(const std::shared_ptr<const Function>& p,
+                        const std::function<void(const std::shared_ptr<Node>&)>& f,
                         bool include_control_deps = false);
 
     void traverse_nodes(const Function* p,
-                        std::function<void(std::shared_ptr<Node>)> f,
+                        const std::function<void(const std::shared_ptr<Node>&)>& f,
                         bool include_control_deps);
 
     /// \brief Visit each node in a sub-graph of the entire graph
@@ -66,14 +66,15 @@ namespace ngraph
     /// result nodes and not from function parameters or extracting a
     /// subgraph relevant to the computation of certain outputs
     void traverse_nodes(const NodeVector& subgraph_results,
-                        std::function<void(std::shared_ptr<Node>)> f,
+                        const std::function<void(const std::shared_ptr<Node>&)>& f,
                         bool include_control_deps,
                         const NodeVector& subgraph_params = {});
 
-    void traverse_functions(std::shared_ptr<Function> p,
-                            std::function<void(std::shared_ptr<Function>)> f);
+    void traverse_functions(const std::shared_ptr<Function>& p,
+                            const std::function<void(const std::shared_ptr<Function>&)>& f);
 
-    void replace_node(std::shared_ptr<Node> target, std::shared_ptr<Node> replacement);
+    void replace_node(const std::shared_ptr<Node>& target,
+                      const std::shared_ptr<Node>& replacement);
 
     template <typename T>
     std::list<std::shared_ptr<Node>> topological_sort(const T& nodes,
@@ -231,7 +232,8 @@ namespace ngraph
     // Check if all paths from X to a result go through Y
     bool is_post_dominated(Node* X, Node* Y);
 
-    bool is_equal_to_const_value(std::string const_value, std::shared_ptr<Node> reduce_constant);
+    bool is_equal_to_const_value(const std::string& const_value,
+                                 const std::shared_ptr<Node>& reduce_constant);
 
     // input nodes are cloned and returned
     // NodeMap input may contain default node mapping i.e. pre-cloned nodes
@@ -261,11 +263,11 @@ namespace ngraph
 
     std::shared_ptr<Node> make_zero(const element::Type& element_type, const Shape& shape);
 
-    std::shared_ptr<Node> make_constant_from_string(std::string val,
+    std::shared_ptr<Node> make_constant_from_string(const std::string& val,
                                                     const element::Type& element_type,
                                                     const Shape& shape);
 
-    bool is_zero(std::shared_ptr<Node> reduce_constant);
+    bool is_zero(const std::shared_ptr<Node>& reduce_constant);
 
     NodeVector get_subgraph_outputs(const NodeVector& nodes,
                                     const NodeVector& exclusions,
@@ -275,20 +277,20 @@ namespace ngraph
     // or a node that belongs to args
     NodeVector extract_subgraph(const NodeVector& results, const NodeVector& args);
 
-    bool is_one(std::shared_ptr<Node> reduce_constant);
+    bool is_one(const std::shared_ptr<Node>& reduce_constant);
 
     bool compare_constants(const std::shared_ptr<Node>& n1, const std::shared_ptr<Node>& n2);
 
     // Returns true if `node` is live in the graph i.e. a result op
     // transitively uses this `node`
-    bool is_used(Node* node);
+    bool is_used(const Node* node);
 
     // Returns count of `node` users that are still live in the graph
-    size_t get_user_count(Node* node);
+    size_t get_user_count(const Node* node);
 
     // Return true if a node's user could potentially overwrite
     // the output of this node with in-place kernels
-    bool possibly_overwritten(Node* node);
+    bool possibly_overwritten(const Node* node);
 
     bool is_strided(const Strides& strides);
 

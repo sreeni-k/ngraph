@@ -82,7 +82,7 @@ void Function::init()
     validate_nodes_and_infer_types();
 
     traverse_nodes(this,
-                   [&](shared_ptr<Node> node) {
+                   [&](const shared_ptr<Node>& node) {
                        if (node->is_parameter())
                        {
                            auto it = std::find(m_parameters.begin(), m_parameters.end(), node);
@@ -179,7 +179,8 @@ shared_ptr<Node> Function::get_result() const
 std::list<shared_ptr<Node>> Function::get_ops(bool include_control_deps) const
 {
     std::list<std::shared_ptr<Node>> ops;
-    traverse_nodes(this, [&](shared_ptr<Node> node) { ops.push_back(node); }, include_control_deps);
+    traverse_nodes(
+        this, [&](const shared_ptr<Node>& node) { ops.push_back(node); }, include_control_deps);
     return ops;
 }
 

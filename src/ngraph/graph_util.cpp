@@ -38,15 +38,15 @@
 using namespace std;
 using namespace ngraph;
 
-void ngraph::traverse_nodes(const std::shared_ptr<const Function> p,
-                            std::function<void(std::shared_ptr<Node>)> f,
+void ngraph::traverse_nodes(const std::shared_ptr<const Function>& p,
+                            const std::function<void(const std::shared_ptr<Node>&)>& f,
                             bool include_control_deps)
 {
     traverse_nodes(p.get(), f, include_control_deps);
 }
 
 void ngraph::traverse_nodes(const Function* p,
-                            std::function<void(std::shared_ptr<Node>)> f,
+                            const std::function<void(const std::shared_ptr<Node>&)>& f,
                             bool include_control_deps)
 {
     NodeVector nodes;
@@ -65,7 +65,7 @@ void ngraph::traverse_nodes(const Function* p,
 }
 
 void ngraph::traverse_nodes(const NodeVector& subgraph_results,
-                            std::function<void(std::shared_ptr<Node>)> f,
+                            const std::function<void(const std::shared_ptr<Node>&)>& f,
                             bool include_control_deps,
                             const NodeVector& subgraph_params)
 {
@@ -108,8 +108,8 @@ void ngraph::traverse_nodes(const NodeVector& subgraph_results,
     }
 }
 
-void ngraph::traverse_functions(std::shared_ptr<ngraph::Function> p,
-                                std::function<void(shared_ptr<Function>)> f)
+void ngraph::traverse_functions(const std::shared_ptr<ngraph::Function>& p,
+                                const std::function<void(const shared_ptr<Function>&)>& f)
 {
     std::unordered_set<shared_ptr<Function>> instances_seen;
     deque<shared_ptr<Function>> stack;
@@ -135,7 +135,8 @@ void ngraph::traverse_functions(std::shared_ptr<ngraph::Function> p,
     }
 }
 
-void ngraph::replace_node(std::shared_ptr<Node> target, std::shared_ptr<Node> replacement)
+void ngraph::replace_node(const std::shared_ptr<Node>& target,
+                          const std::shared_ptr<Node>& replacement)
 {
     if (target->is_output())
     {
@@ -270,7 +271,8 @@ std::shared_ptr<ngraph::Function> ngraph::clone_function(const ngraph::Function&
     return std::make_shared<ngraph::Function>(cloned_results, cloned_params);
 }
 
-bool ngraph::is_equal_to_const_value(std::string const_value, std::shared_ptr<Node> reduce_constant)
+bool ngraph::is_equal_to_const_value(const std::string& const_value,
+                                     const std::shared_ptr<Node>& reduce_constant)
 {
     if (auto rc = dynamic_pointer_cast<ngraph::op::Constant>(reduce_constant))
     {
@@ -423,7 +425,7 @@ std::shared_ptr<Node> ngraph::make_zero(const element::Type& element_type, const
     return zero;
 }
 
-std::shared_ptr<Node> ngraph::make_constant_from_string(std::string val,
+std::shared_ptr<Node> ngraph::make_constant_from_string(const std::string& val,
                                                         const element::Type& element_type,
                                                         const Shape& shape)
 {
@@ -431,13 +433,13 @@ std::shared_ptr<Node> ngraph::make_constant_from_string(std::string val,
     return std::make_shared<op::Constant>(element_type, shape, cvals);
 }
 
-bool ngraph::is_zero(std::shared_ptr<Node> reduce_constant)
+bool ngraph::is_zero(const std::shared_ptr<Node>& reduce_constant)
 {
     auto result_bool = is_equal_to_const_value("0", reduce_constant);
     return result_bool;
 }
 
-bool ngraph::is_one(std::shared_ptr<Node> reduce_constant)
+bool ngraph::is_one(const std::shared_ptr<Node>& reduce_constant)
 {
     auto result_bool = is_equal_to_const_value("1", reduce_constant);
     return result_bool;
@@ -473,19 +475,20 @@ NodeVector ngraph::get_subgraph_outputs(const NodeVector& nodes,
 NodeVector ngraph::extract_subgraph(const NodeVector& results, const NodeVector& args)
 {
     NodeVector subgraph;
-    traverse_nodes(results, [&](std::shared_ptr<Node> n) { subgraph.push_back(n); }, true, args);
+    traverse_nodes(
+        results, [&](const std::shared_ptr<Node>& n) { subgraph.push_back(n); }, true, args);
     return subgraph;
 }
 
-bool ngraph::is_used(Node* node)
+bool ngraph::is_used(const Node* node)
 {
-    std::unordered_set<Node*> instances_seen;
-    std::deque<Node*> stack;
+    std::unordered_set<const Node*> instances_seen;
+    std::deque<const Node*> stack;
     stack.push_front(node);
 
     while (stack.size() > 0)
     {
-        ngraph::Node* n = stack.front();
+        const Node* n = stack.front();
         if (instances_seen.count(n) == 0)
         {
             if (n->is_output())
@@ -506,7 +509,7 @@ bool ngraph::is_used(Node* node)
     return false;
 }
 
-size_t ngraph::get_user_count(Node* node)
+size_t ngraph::get_user_count(const Node* node)
 {
     size_t count = 0;
     for (const auto& node_user : node->get_users())
@@ -516,7 +519,7 @@ size_t ngraph::get_user_count(Node* node)
     return count;
 }
 
-bool ngraph::possibly_overwritten(Node* node)
+bool ngraph::possibly_overwritten(const Node* node)
 {
     for (auto& output : node->outputs())
     {

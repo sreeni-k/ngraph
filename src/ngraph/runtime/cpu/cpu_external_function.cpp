@@ -1017,7 +1017,7 @@ using namespace ngraph::runtime;
             writer << "\n";
             // Build the flow graph
 
-            traverse_nodes(current_function, [&writer](shared_ptr<Node> n) {
+            traverse_nodes(current_function, [&writer](const shared_ptr<Node>& n) {
                 if (!n->is_parameter() && !n->is_constant())
                 {
                     bool is_head = true;
@@ -1651,7 +1651,8 @@ void runtime::cpu::CPU_ExternalFunction::build(ngraph::pass::PassConfig& pass_co
                 }
 
                 traverse_nodes(
-                    m_function, [&flowgraph_node_start, &nodename_tbbnode_map](shared_ptr<Node> n) {
+                    m_function,
+                    [&flowgraph_node_start, &nodename_tbbnode_map](const shared_ptr<Node>& n) {
                         if (!n->is_parameter() && !n->is_constant())
                         {
                             bool is_head = true;

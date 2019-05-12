@@ -206,7 +206,7 @@ ngraph::FpropCache ngraph::cache_fprop(std::shared_ptr<ngraph::Function> fprop,
     // Traverse bprop to find all of the nodes in the bprop graph
     std::unordered_set<std::shared_ptr<Node>> in_bprop;
     ngraph::traverse_nodes(bprop,
-                           [&in_bprop](std::shared_ptr<Node> node) {
+                           [&in_bprop](const std::shared_ptr<Node>& node) {
                                if (node->get_output_size() == 1)
                                {
                                    if (in_bprop.count(node) == 0)
@@ -222,7 +222,7 @@ ngraph::FpropCache ngraph::cache_fprop(std::shared_ptr<ngraph::Function> fprop,
     // and aren't inputs to bprop
     auto bprop_inputs = bprop->get_parameters();
     ngraph::traverse_nodes(
-        fprop, [&fprop_cache, &in_bprop, &bprop_inputs](std::shared_ptr<Node> node) {
+        fprop, [&fprop_cache, &in_bprop, &bprop_inputs](const std::shared_ptr<Node>& node) {
             if (in_bprop.count(node) != 0 &&
                 std::find(bprop_inputs.begin(), bprop_inputs.end(), node) == bprop_inputs.end())
             {
@@ -284,7 +284,8 @@ ngraph::FpropCache ngraph::cache_fprop(std::shared_ptr<ngraph::Function> fprop,
     auto cloned_bprop_inputs = get_bprop_params();
     ngraph::traverse_nodes(
         result_nodes,
-        [&cloned_bprop_inputs, &fprop_cache, &inverted_node_map](std::shared_ptr<Node> node) {
+        [&cloned_bprop_inputs, &fprop_cache, &inverted_node_map](
+            const std::shared_ptr<Node>& node) {
             auto pnode = std::dynamic_pointer_cast<op::Parameter>(node);
             if (pnode != nullptr &&
                 std::find(cloned_bprop_inputs.begin(), cloned_bprop_inputs.end(), pnode) ==

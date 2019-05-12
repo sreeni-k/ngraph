@@ -309,7 +309,7 @@ static void serialize_to_cpio(ostream& out, shared_ptr<ngraph::Function> func, s
 
     traverse_functions(func, [&](shared_ptr<ngraph::Function> f) {
         traverse_nodes(const_cast<Function*>(f.get()),
-                       [&](shared_ptr<Node> node) {
+                       [&](const shared_ptr<Node>& node) {
                            if (auto c = dynamic_pointer_cast<op::Constant>(node))
                            {
                                uint32_t size =
