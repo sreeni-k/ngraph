@@ -20,6 +20,7 @@
 
 #include "exceptions.hpp"
 #include "ngraph/axis_vector.hpp"
+#include "ngraph/op/experimental/dyn_reshape.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/shape.hpp"
@@ -46,13 +47,7 @@ namespace ngraph
                     // If no shape argument (opset >= 5) and there is second input.
                     if (output_shape.empty() && ng_inputs.size() == 2)
                     {
-                        // Currently only support Constant node.
-                        ASSERT_IS_SUPPORTED(node, ng_inputs.at(1)->description() == "Constant")
-                            << "doesn't support shape input of other type than Constant.";
-
-                        auto output_shape_node =
-                            std::dynamic_pointer_cast<ngraph::op::Constant>(ng_inputs.at(1));
-                        output_shape = output_shape_node->get_vector<std::size_t>();
+                        return {std::make_shared<ngraph::op::DynReshape>(data, ng_inputs.at(1))};
                     }
                     // Do nothing if there is no shape argument nor second node input.
                     else if (output_shape.empty())

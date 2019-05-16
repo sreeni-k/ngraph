@@ -316,3 +316,27 @@ NGRAPH_TEST(${BACKEND_NAME}, all_change_axis)
     handle->call_with_validate({result}, {a});
     EXPECT_EQ((vector<char>{1, 0, 1}), read_vector<char>(result));
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, test_dyn_reshape)
+{
+    Shape shape{2, 2, 3};
+    auto A = make_shared<op::Parameter>(element::f32, shape);
+    auto new_shape = make_shared<op::Parameter>(element::i64, Shape{4});
+    auto f = make_shared<Function>(make_shared<op::DynReshape>(A, new_shape), ParameterVector{A, new_shape});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    // Create some tensors for input/output
+    auto a = backend->create_tensor(element::f32, shape);
+    copy_data(
+        a, test::NDArray<char, 3>({{{1, 0, 1}, {1, 1, 0}}, {{0, 1, 0}, {1, 1, 1}}}).get_vector());
+
+    // Create some tensors for input/output
+    auto sh = backend->create_tensor(element::i64, {4});
+    copy_data(sh, vector<int64_t>{2, 2, 3, 1});
+    auto result = backend->create_tensor(element::f32, Shape{2, 2, 3, 1});
+
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a, sh});
+    EXPECT_EQ((vector<float>{1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1}), read_vector<float>(result));
+}
