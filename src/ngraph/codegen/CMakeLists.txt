@@ -26,7 +26,7 @@ set(SRC
     compiler.cpp
     execution_engine.cpp
 )
-add_library(codegen SHARED ${SRC})
+add_library(codegen STATIC ${SRC})
 
 # LLVM binary builds are typically built without RTTI
 # The built-in headers are in a version-specific directory

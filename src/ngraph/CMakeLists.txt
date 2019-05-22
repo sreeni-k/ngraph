@@ -484,7 +484,7 @@ endif()
 
 configure_file(version.in.hpp version.hpp)
 
-add_library(ngraph SHARED ${SRC})
+add_library(ngraph STATIC ${SRC})
 
 if(NGRAPH_DISTRIBUTED_ENABLE)
     if(NGRAPH_DISTRIBUTED_MLSL_ENABLE)
