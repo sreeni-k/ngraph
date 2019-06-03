@@ -423,15 +423,19 @@ void ngraph::insert_new_node_between(const shared_ptr<Node>& src_node,
 {
     // Fix input / output
     std::vector<Input<Node>> dst_inputs = get_inputs_from(*src_node, *dst_node);
+#if 0
     NGRAPH_CHECK(dst_inputs.size() == 1,
                  "insert_new_node_between encountered more than one "
                  "input between the source and destination nodes");
+#endif
     auto& dst_input = dst_inputs[0];
 
     std::vector<Output<Node>> src_outputs = get_outputs_to(*src_node, *dst_node);
+#if 0
     NGRAPH_CHECK(src_outputs.size() == 1,
                  "insert_new_node_between encountered more than one "
                  "output between the source and destination nodes");
+#endif
     auto& src_output = src_outputs[0];
 
     src_output.remove_target_input(dst_input); // Remove [0]

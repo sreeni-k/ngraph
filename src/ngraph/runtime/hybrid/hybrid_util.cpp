@@ -223,10 +223,15 @@ void runtime::hybrid::rewrite_function(const shared_ptr<Function>& f,
                 // we just added
                 auto sub_function = make_shared<Function>(cluster_outputs, cluster_inputs);
                 sub_function->set_placement(placement);
+#if 0
                 auto fc = make_shared<runtime::hybrid::op::FunctionCall>(function_call_outputs,
                                                                          function_call_inputs,
                                                                          *sub_function,
                                                                          backend_list[placement]);
+#else
+                auto fc = make_shared<runtime::hybrid::op::FunctionCall>(
+                    cluster_outputs, function_call_inputs, *sub_function, backend_list[placement]);		
+#endif
                 fc->set_placement_index(0);
                 for (size_t i = 0; i < function_call_outputs.size(); i++)
                 {
@@ -238,12 +243,19 @@ void runtime::hybrid::rewrite_function(const shared_ptr<Function>& f,
                     auto target = function_call_outputs[i];
 
                     std::vector<Input<Node>> target_inputs = get_inputs_from(*old_source, *target);
+#if 0
                     NGRAPH_CHECK(target_inputs.size() == 1,
                                  "rewrite_function encountered more than "
                                  "one input between the old source node and the target node");
                     auto& target_input = target_inputs[0];
 
                     target_input.replace_source_output(goe->output(0));
+#else
+                    for (Input<Node> target_input : target_inputs)
+                    {
+                        target_input.replace_source_output(goe->output(0));
+                    }		    
+#endif
                 }
             }
         }
