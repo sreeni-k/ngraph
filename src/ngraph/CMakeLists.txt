@@ -22,6 +22,8 @@ set (SRC
     axis_set.hpp
     axis_vector.cpp
     axis_vector.hpp
+    binding.cpp
+    binding.hpp
     builder/autobroadcast.cpp
     builder/autobroadcast.hpp
     builder/make_constant.hpp
