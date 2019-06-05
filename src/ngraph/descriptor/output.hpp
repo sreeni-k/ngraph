@@ -31,6 +31,8 @@ namespace ngraph
     // systems (namely macOS).
     class Node;
 
+    class Binding;
+
     namespace descriptor
     {
         // Describes an output tensor of an op
@@ -40,7 +42,7 @@ namespace ngraph
             /// \param node Node that owns this output.
             /// \param index Position of the output tensor in all output tensors
             /// \param tensor The tensor where the value will be written
-            Output(Node* node, size_t index, const std::shared_ptr<Tensor>& tensor);
+            Output( Node* node, size_t index, const std::shared_ptr<Tensor>& tensor);
 
             std::shared_ptr<Node> get_node() const;
             size_t get_index() const { return m_index; }
@@ -59,6 +61,9 @@ namespace ngraph
 
             /// \return the element type of the output
             const element::Type& get_element_type() const;
+
+            /// \return the binding associated with the node
+            std::shared_ptr<Binding> get_binding() const;
 
         protected:
             Node* m_node;

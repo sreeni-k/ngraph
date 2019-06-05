@@ -22,9 +22,13 @@
 using namespace ngraph;
 using namespace descriptor;
 
-descriptor::Input::Input(Node* node, size_t index, Output& output)
+descriptor::Input::Input(Node* node,
+                         size_t index,
+                         const std::shared_ptr<Binding>& binding,
+                         Output& output)
     : m_node(node)
     , m_index(index)
+    , m_binding(binding)
     , m_output(&output)
     , m_is_relevant_to_shape(false)
     , m_is_relevant_to_value(true)
@@ -47,15 +51,17 @@ descriptor::Input::~Input()
     remove_output();
 }
 
-void descriptor::Input::replace_output(Output& new_output)
+void descriptor::Input::replace_output(const std::shared_ptr<Binding>& new_binding,
+                                       Output& new_output)
 {
     if (m_output != nullptr)
     {
         m_output->remove_input(this);
     }
-    new_output.add_input(this);
+    m_binding = new_binding;
     m_output = &new_output;
     m_src_node = std::shared_ptr<Node>(new_output.get_node());
+    new_output.add_input(this);
 
     static const auto nerc = std::getenv("NGRAPH_ENABLE_REPLACE_CHECK");
 
@@ -68,9 +74,11 @@ void descriptor::Input::replace_output(Output& new_output)
     }
 }
 
-void descriptor::Input::replace_output(std::shared_ptr<Node> node, size_t i)
+void descriptor::Input::replace_output(const std::shared_ptr<Binding>& new_binding,
+                                       std::shared_ptr<Node> node,
+                                       size_t i)
 {
-    replace_output(node->m_outputs.at(i));
+    replace_output(new_binding, node->m_outputs.at(i));
 }
 
 void descriptor::Input::remove_output()

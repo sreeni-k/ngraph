@@ -480,6 +480,8 @@ namespace ngraph
         const size_t m_index;
     };
 
+    class Binding;
+
     /// \brief A handle for one of a node's outputs.
     template <typename NodeType>
     class Output
@@ -495,12 +497,38 @@ namespace ngraph
         }
 
         /// \brief Constructs a Output.
+        /// \param binding The binding for interpreting the node
+        /// \param node A pointer to the node for the output handle.
+        /// \param index The index of the output.
+        Output(const std::shared_ptr<Binding>& binding, NodeType* node, size_t index)
+            : m_binding(binding)
+            , m_node(node)
+            , m_index(index)
+        {
+        }
+
+        /// \brief Constructs a Output.
         /// \param node A `shared_ptr` to the node for the output handle.
         /// \param index The index of the output.
         ///
         /// TODO: Make a plan to deprecate this.
         Output(const std::shared_ptr<NodeType>& node, size_t index)
             : m_node(node.get())
+            , m_index(index)
+        {
+        }
+
+        /// \brief Constructs a Output.
+        /// \param binding the binding for interpreting the node
+        /// \param node A `shared_ptr` to the node for the output handle.
+        /// \param index The index of the output.
+        ///
+        /// TODO: Make a plan to deprecate this.
+        Output(const std::shared_ptr<Binding>& binding,
+               const std::shared_ptr<NodeType>& node,
+               size_t index)
+            : m_binding(binding)
+            , m_node(node.get())
             , m_index(index)
         {
         }
@@ -512,7 +540,8 @@ namespace ngraph
             : Output(node, 0)
         {
         }
-
+        /// \return A `shred_ptr` to the binding
+        const std::shared_ptr<Binding>& get_binding() const { return m_binding; }
         /// \return A pointer to the node referred to by this output handle.
         NodeType* get_node() const { return m_node; }
         /// \return A `shared_ptr` to the node referred to by this output handle.
@@ -556,20 +585,26 @@ namespace ngraph
 
         bool operator==(const Output& other) const
         {
-            return m_node == other.m_node && m_index == other.m_index;
+            return m_binding == other.m_binding && m_node == other.m_node &&
+                   m_index == other.m_index;
         }
         bool operator!=(const Output& other) const { return !(*this == other); }
         bool operator<(const Output& other) const
         {
-            return m_node < other.m_node || (m_node == other.m_node && m_index < other.m_index);
+            return m_binding < other.m_binding ||
+                   (m_binding == other.m_binding &&
+                    (m_node < other.m_node || (m_node == other.m_node && m_index < other.m_index)));
         }
         bool operator>(const Output& other) const
         {
-            return m_node > other.m_node || (m_node == other.m_node && m_index > other.m_index);
+            return m_binding > other.m_binding ||
+                   (m_binding == other.m_binding &&
+                    (m_node > other.m_node || (m_node == other.m_node && m_index > other.m_index)));
         }
         bool operator<=(const Output& other) const { return !(*this > other); }
         bool operator>=(const Output& other) const { return !(*this < other); }
     private:
+        std::shared_ptr<Binding> m_binding;
         NodeType* m_node;
         size_t m_index;
     };
@@ -624,7 +659,8 @@ namespace ngraph
     template <typename NodeType>
     void Input<NodeType>::replace_source_output(const Output<Node>& new_source_output) const
     {
-        m_node->m_inputs.at(m_index).replace_output(new_source_output.get_node_shared_ptr(),
+        m_node->m_inputs.at(m_index).replace_output(new_source_output.get_binding(),
+                                                    new_source_output.get_node_shared_ptr(),
                                                     new_source_output.get_index());
     }
 

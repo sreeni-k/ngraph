@@ -128,7 +128,7 @@ void Node::set_arguments(const OutputVector& arguments)
     {
         auto output_node = output.get_node();
         auto& output_descriptor = output_node->get_outputs().at(output.get_index());
-        m_inputs.emplace_back(this, i++, output_descriptor);
+        m_inputs.emplace_back(this, i++, output.get_binding(), output_descriptor);
     }
 }
 
@@ -157,7 +157,7 @@ void Node::set_argument(size_t position, const Output<Node>& argument)
 {
     auto output_node = argument.get_node();
     auto& output_descriptor = output_node->get_output_descriptor(argument.get_index());
-    get_input_descriptor(position).replace_output(output_descriptor);
+    get_input_descriptor(position).replace_output(argument.get_binding(), output_descriptor);
 }
 
 // While we are still doing validation and type inference in the constructor, this is true

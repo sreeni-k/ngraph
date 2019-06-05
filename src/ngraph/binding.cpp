@@ -18,8 +18,10 @@
 
 using namespace ngraph;
 
-Binding::Binding()
+std::shared_ptr<Binding> ngraph::bind(const ParameterVector& parameters,
+                                      const OutputVector& arguments)
 {
+    return std::shared_ptr<Binding>(new Binding(parameters, arguments));
 }
 
 Binding::Binding(const ParameterVector& parameters, const OutputVector& arguments)
@@ -33,27 +35,7 @@ const ParameterVector& Binding::get_parameters() const
     return m_parameters;
 }
 
-ParameterVector& Binding::get_parameters()
-{
-    return m_parameters;
-}
-
-void Binding::set_parameters(const ParameterVector& parameters)
-{
-    m_parameters = parameters;
-}
-
 const OutputVector& Binding::get_arguments() const
 {
     return m_arguments;
-}
-
-OutputVector& Binding::get_arguments()
-{
-    return m_arguments;
-}
-
-void Binding::set_arguments(const OutputVector& arguments)
-{
-    m_arguments = arguments;
 }

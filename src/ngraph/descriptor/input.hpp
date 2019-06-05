@@ -23,6 +23,7 @@
 namespace ngraph
 {
     class Node;
+    class Binding;
 
     namespace descriptor
     {
@@ -37,11 +38,15 @@ namespace ngraph
             /// \param node The node that owns this input
             /// \param index The position of this this tensor in all input tensors
             /// \param output The output that supplies a value for this input
-            Input(Node* node, size_t index, Output& output);
+            Input(Node* node,
+                  size_t index,
+                  const std::shared_ptr<Binding>& binding,
+                  Output& output);
             /// \brief Create an Input that is not connected to an output
             /// \param node The node that owns this input
             /// \param index The position of this this tensor in all input tensors
             Input(Node* node, size_t index);
+
             ~Input();
 
             /// \return the node that this is an input of
@@ -64,9 +69,16 @@ namespace ngraph
             Tensor& get_tensor();
 
             /// \brief Replace the current output that supplies a value for this input with output i of node
-            void replace_output(std::shared_ptr<Node> node, size_t i);
+            void replace_output(const std::shared_ptr<Binding>& binding,
+                                std::shared_ptr<Node> node,
+                                size_t i);
+            void replace_output(std::shared_ptr<Node> node, size_t i)
+            {
+                replace_output(m_binding, node, i);
+            }
             /// \brief Replace the current output that supplies a value for this input with output
-            void replace_output(Output& output);
+            void replace_output(const std::shared_ptr<Binding>& binding, Output& output);
+            void replace_output(Output& output) { replace_output(m_binding, output); }
             /// \brief Remove the output from this input. The node will not be valid until another output is supplied.
             void remove_output();
 
@@ -102,6 +114,7 @@ namespace ngraph
             std::shared_ptr<Node> m_src_node;
             Node* m_node;   // The node we are an input for
             size_t m_index; // Index into all input tensors
+            std::shared_ptr<Binding> m_binding;
             Output* m_output;
 
         private:

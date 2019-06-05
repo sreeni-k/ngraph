@@ -21,17 +21,19 @@
 
 namespace ngraph
 {
+    class Binding;
+    std::shared_ptr<Binding> bind(const ParameterVector& parameters, const OutputVector& arguments);
+
     class Binding
     {
-    public:
-        Binding();
+        friend std::shared_ptr<Binding> bind(const ParameterVector& parameters,
+                                             const OutputVector& arguments);
+
         Binding(const ParameterVector& parameters, const OutputVector& arguments);
+
+    public:
         const ParameterVector& get_parameters() const;
-        ParameterVector& get_parameters();
-        void set_parameters(const ParameterVector& parameters);
         const OutputVector& get_arguments() const;
-        OutputVector& get_arguments();
-        void set_arguments(const OutputVector& arguments);
 
     private:
         ParameterVector m_parameters;
