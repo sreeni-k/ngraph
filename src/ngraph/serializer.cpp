@@ -1600,14 +1600,9 @@ static shared_ptr<ngraph::Function>
             {
                 node->set_friendly_name(friendly_name);
             }
-
-            std::vector<json> prov_js = node_js.at("provenance_tags");
-            if (!prov_js.empty())
+            else
             {
-                for (auto prov_tag : prov_js)
-                {
-                    node->add_provenance_tag(prov_tag);
-                }
+                node->set_friendly_name(node_name);
             }
             node_map[node_name] = node;
         }
@@ -1713,12 +1708,6 @@ static json write(const Node& n, bool binary_constant_data)
         }
         node["output_shapes"] = output_shapes;
     }
-    json provenance_tags = json::array();
-    for (auto prov_tag : n.get_provenance_tags())
-    {
-        provenance_tags.push_back(prov_tag);
-    }
-    node["provenance_tags"] = provenance_tags;
 
     string node_op = n.description();
 #if !(defined(__GNUC__) && (__GNUC__ == 4 && __GNUC_MINOR__ == 8))
@@ -1858,7 +1847,7 @@ static json write(const Node& n, bool binary_constant_data)
     case OP_TYPEID::Constant:
     {
         auto tmp = dynamic_cast<const op::Constant*>(&n);
-        if (tmp->are_all_data_elements_bitwise_identical())
+        if (tmp->are_all_data_elements_bitwise_identical() && shape_size(tmp->get_shape()) > 0)
         {
             vector<string> vs;
             vs.push_back(tmp->convert_value_to_string(0));
