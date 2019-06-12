@@ -62,6 +62,10 @@
     }
 
 using namespace ngraph;
+void ngraph::runtime::cpu::pass::LSTMFusion::construct_onnx_lstmcell_fprop()
+{
+}
+
 void ngraph::runtime::cpu::pass::LSTMFusion::construct_sigmoid()
 {
     // construct variance
