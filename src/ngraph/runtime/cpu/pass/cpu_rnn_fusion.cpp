@@ -103,13 +103,15 @@ void ngraph::runtime::cpu::pass::LSTMFusion::construct_onnx_lstmcell_fprop()
             ngraph::runtime::cpu::rnn_utils::rnntype::vanilla_lstm;
 
         auto lstm = std::dynamic_pointer_cast<op::LSTMCell>(m.get_match_root());
-        auto src_iter = std::make_shared<ngraph::op::Concat>(NodeVector{H_t, C_t}, 0);
+        auto src_iter =
+            std::make_shared<ngraph::op::Concat>(NodeVector{pattern_map[H_t], pattern_map[C_t]}, 0);
         auto bias = op::Constant::create(pattern_map[X]->get_element_type(),
                                          Shape{4 * lstm->get_hidden_size()},
                                          std::vector<float>(4 * lstm->get_hidden_size(), 0.f));
         std::cout << bias->get_shape() << std::endl;
 
-        auto lstm_node = std::make_shared<ngraph::op::Lstm>(X, src_iter, W, R, bias, rnn_type);
+        auto lstm_node = std::make_shared<ngraph::op::Lstm>(
+            pattern_map[X], src_iter, pattern_map[W], pattern_map[R], bias, rnn_type);
 
         auto lstm_ht_output = std::make_shared<ngraph::op::GetOutputElement>(lstm_node, 0);
         auto lstm_ht_ct_output = std::make_shared<ngraph::op::GetOutputElement>(lstm_node, 1);
@@ -124,6 +126,9 @@ void ngraph::runtime::cpu::pass::LSTMFusion::construct_onnx_lstmcell_fprop()
         auto dic = pattern_map[R]->get_shape()[0] / (lstm_n_gates * direction * layers);
         auto sic = pattern_map[R]->get_shape()[1];
 
+        auto goe_nodes = ngraph::op::get_output_elements(m.get_match_root());
+        auto dst_layer = goe_nodes[0];
+        auto dst_iter = goe_nodes[1];
         // dst_iter of lstm mkldnn output holds the results of both recurrent state
         // tensor outputs. we need to slice the ct.
         auto ht_slice = std::make_shared<ngraph::op::Slice>(
@@ -138,16 +143,22 @@ void ngraph::runtime::cpu::pass::LSTMFusion::construct_onnx_lstmcell_fprop()
         // Now identify the nodes which consumes the output of LSTM nodes
         // and replace them accordingly
         // find the user's for {ht|ct} and replace them with lstm_goe_1
-        if (ngraph::is_used(pattern_map[C_t].get()))
+        /*if (ngraph::is_used(pattern_map[C_t].get()))
         {
             replace_collapse_node_user(pattern_map[C_t], ct_slice->get_outputs().at(0));
+        }*/
+
+        // find the user's for {ht} and replace them with lstm_goe_0
+        if (dst_iter != NULL)
+        {
+            ngraph::replace_node(dst_iter, ct_slice);
         }
         // find the user's for {ht} and replace them with lstm_goe_0
-        ngraph::replace_node(m.get_match_root(), ht_slice);
+        if (dst_layer != NULL)
+        {
+            ngraph::replace_node(dst_layer, ht_slice);
+        }
         return true;
-
-        //    std::cout << "Inside LSTMCell call back " << std::endl;
-        //    return false;
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(lstm_cell, "LSTMFusion.onnx_lstm_cell");
