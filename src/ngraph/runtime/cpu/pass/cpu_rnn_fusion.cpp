@@ -108,10 +108,39 @@ void ngraph::runtime::cpu::pass::LSTMFusion::construct_onnx_lstmcell_fprop()
         auto bias = op::Constant::create(pattern_map[X]->get_element_type(),
                                          Shape{4 * lstm->get_hidden_size()},
                                          std::vector<float>(4 * lstm->get_hidden_size(), 0.f));
-        std::cout << bias->get_shape() << std::endl;
+
+        // we need to reorder W, R and bias from IOFC to IFCO gate order
+        // Note: ONNX runtime provides W, R and bias in the gate order [IOFC] but
+        // MKLDNN computes LSTM kernel in the [IFCO] order.
+        size_t hidden_size = lstm->get_hidden_size();
+
+        auto get_weights_ifco_gate_order =
+            [&](std::shared_ptr<pattern::op::Label> node_label) -> std::shared_ptr<Node> {
+            // slices will be in ICFO order
+            std::vector<std::shared_ptr<Node>> gate_slices;
+            auto weights_graph_node = pattern_map[node_label];
+
+            for (size_t i = 0; i < 4; i++)
+            {
+                auto slice = std::make_shared<ngraph::op::Slice>(
+                    weights_graph_node,
+                    Coordinate{i * hidden_size, 0},
+                    Coordinate{(i + 1) * hidden_size, hidden_size});
+                std::cout << "lower_bounds: " << slice->get_lower_bounds()
+                          << "upper_bounds: " << slice->get_upper_bounds() << std::endl;
+                gate_slices.push_back(slice);
+            }
+
+            auto weights_ifco = std::make_shared<ngraph::op::Concat>(
+                NodeVector{gate_slices[0], gate_slices[2], gate_slices[3], gate_slices[1]}, 0);
+            return weights_ifco;
+        };
+
+        auto W_ifco = get_weights_ifco_gate_order(W);
+        auto R_ifco = get_weights_ifco_gate_order(R);
 
         auto lstm_node = std::make_shared<ngraph::op::Lstm>(
-            pattern_map[X], src_iter, pattern_map[W], pattern_map[R], bias, rnn_type);
+            pattern_map[X], src_iter, W_ifco, R_ifco, bias, rnn_type);
 
         auto lstm_ht_output = std::make_shared<ngraph::op::GetOutputElement>(lstm_node, 0);
         auto lstm_ht_ct_output = std::make_shared<ngraph::op::GetOutputElement>(lstm_node, 1);
@@ -140,13 +169,6 @@ void ngraph::runtime::cpu::pass::LSTMFusion::construct_onnx_lstmcell_fprop()
         {
             throw ngraph_error("Lstm node doesnt have two outputs");
         }
-        // Now identify the nodes which consumes the output of LSTM nodes
-        // and replace them accordingly
-        // find the user's for {ht|ct} and replace them with lstm_goe_1
-        /*if (ngraph::is_used(pattern_map[C_t].get()))
-        {
-            replace_collapse_node_user(pattern_map[C_t], ct_slice->get_outputs().at(0));
-        }*/
 
         // find the user's for {ht} and replace them with lstm_goe_0
         if (dst_iter != NULL)
@@ -156,7 +178,7 @@ void ngraph::runtime::cpu::pass::LSTMFusion::construct_onnx_lstmcell_fprop()
         // find the user's for {ht} and replace them with lstm_goe_0
         if (dst_layer != NULL)
         {
-            ngraph::replace_node(dst_layer, ht_slice);
+            ngraph::replace_node(dst_layer, lstm_ht_output);
         }
         return true;
     };
