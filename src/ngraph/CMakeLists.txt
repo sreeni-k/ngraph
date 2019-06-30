@@ -80,6 +80,8 @@ set (SRC
     ngraph_visibility.hpp
     node.cpp
     node.hpp
+    node_validator_default.cpp
+    node_validator_default.hpp
     op/abs.cpp
     op/abs.hpp
     op/acos.cpp

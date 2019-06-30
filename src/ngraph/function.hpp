@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "ngraph/node.hpp"
+#include "ngraph/node_validator_interface.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/result.hpp"
 
@@ -96,6 +97,7 @@ namespace ngraph
         void replace_node(std::shared_ptr<Node> old, std::shared_ptr<Node> repl);
 
         void validate_nodes_and_infer_types();
+        void set_node_validator(const std::shared_ptr<NodeValidatorInterface>& validator);
 
         /// \brief Returns the sum of the size of all nodes in the graph plus the size of
         /// all constant data. This has little value beyond comparing the relative size of
@@ -123,5 +125,6 @@ namespace ngraph
         std::string m_name;
         const std::string m_unique_name;
         size_t m_placement{0};
+        std::shared_ptr<NodeValidatorInterface> m_node_validator;
     };
 }

@@ -52,5 +52,6 @@ op::util::BinaryElementwiseArithmetic::BinaryElementwiseArithmetic(
 
 void op::util::BinaryElementwiseArithmetic::validate_and_infer_types()
 {
+    NGRAPH_INFO << "*******************************************************";
     validate_and_infer_elementwise_arithmetic(m_autob);
 }

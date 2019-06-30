@@ -21,6 +21,7 @@
 #include "ngraph/function.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/log.hpp"
+#include "ngraph/node_validator_default.hpp"
 #include "ngraph/util.hpp"
 
 using namespace std;
@@ -37,6 +38,7 @@ Function::Function(const ResultVector& results,
     , m_instance_id(m_next_instance_id.fetch_add(1))
     , m_name(name)
     , m_unique_name("Function_" + to_string(m_instance_id))
+    , m_node_validator(new NodeValidatorDefault())
 {
     init();
 }
@@ -50,6 +52,7 @@ Function::Function(const NodeVector& results,
     , m_instance_id(m_next_instance_id.fetch_add(1))
     , m_name(name)
     , m_unique_name("Function_" + to_string(m_instance_id))
+    , m_node_validator(new NodeValidatorDefault())
 {
     if (std::any_of(results.cbegin(), results.cend(), [](std::shared_ptr<Node> n) {
             return std::dynamic_pointer_cast<op::Result>(n);
@@ -74,7 +77,12 @@ Function::Function(const std::shared_ptr<Node>& result,
 
 void Function::validate_nodes_and_infer_types()
 {
-    ngraph::validate_nodes_and_infer_types(get_ops());
+    m_node_validator->validate_nodes_and_infer_types(get_ops());
+}
+
+void Function::set_node_validator(const std::shared_ptr<NodeValidatorInterface>& validator)
+{
+    m_node_validator = validator;
 }
 
 void Function::init()
