@@ -190,17 +190,14 @@ public:
                            const std::vector<std::shared_ptr<HostTensor>>& outputs,
                            const std::vector<std::shared_ptr<HostTensor>>& inputs);
 
-private:
+protected:
     INTExecutable(const std::string& model_string);
 
-    int get_alignment() const { return 64; }
-    bool m_is_compiled = false;
     bool m_nan_check_enabled = false;
     bool m_performance_counters_enabled = false;
     std::shared_ptr<Function> m_function;
     std::unordered_map<std::shared_ptr<const Node>, stopwatch> m_timer_map;
     std::vector<NodeWrapper> m_wrapped_nodes;
-    std::set<std::string> m_unsupported_op_name_list;
 
     static void perform_nan_check(const std::vector<std::shared_ptr<HostTensor>>&,
                                   const Node* op = nullptr);

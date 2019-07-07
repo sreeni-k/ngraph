@@ -40,8 +40,7 @@ using descriptor::layout::DenseTensorLayout;
 
 runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& function,
                                                    bool enable_performance_collection)
-    : m_is_compiled{true}
-    , m_performance_counters_enabled{enable_performance_collection}
+    : m_performance_counters_enabled{enable_performance_collection}
 {
     m_function = clone_function(*function);
     pass::Manager pass_manager;
@@ -60,8 +59,7 @@ runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& f
 }
 
 runtime::interpreter::INTExecutable::INTExecutable(const std::string& model_string)
-    : m_is_compiled{true}
-    , m_performance_counters_enabled{false}
+    : m_performance_counters_enabled{false}
 {
     m_function = deserialize(model_string);
     for (const shared_ptr<Node>& node : m_function->get_ordered_ops())
