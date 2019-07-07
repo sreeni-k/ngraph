@@ -304,3 +304,883 @@ void runtime::interpreter::INTExecutable::save(ostream& out)
     string model = serialize(m_function, 0);
     writer.write("model", model.data(), model.size());
 }
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Abs* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Acos* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Add* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::All* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::AllReduce* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::And* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Any* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::ArgMax* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::ArgMin* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Asin* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Atan* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::AvgPool* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::AvgPoolBackprop* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::BatchMatMul* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::BatchNormInference* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::BatchNormTraining* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::BatchNormTrainingBackprop* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Broadcast* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::BroadcastDistributed* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::BroadcastLike* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Ceiling* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Concat* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Constant* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Convert* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Convolution* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::ConvolutionBackpropData* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::ConvolutionBackpropFilters* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Cos* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Cosh* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Dequantize* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Divide* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Dot* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::DynBroadcast* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::DynPad* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::DynReplaceSlice* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::DynReshape* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::DynSlice* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::EmbeddingLookup* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Equal* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Erf* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Exp* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Floor* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Gather* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::GatherND* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::GenerateMask* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::GetOutputElement* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Greater* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::GreaterEq* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Less* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::LessEq* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Log* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::LRN* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Max* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Maximum* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::MaxPool* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::MaxPoolBackprop* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Min* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Minimum* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Multiply* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Negative* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Not* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::NotEqual* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::OneHot* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Or* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Pad* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Parameter* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Passthrough* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Power* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Product* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Quantize* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::QuantizedAvgPool* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::QuantizedConvolution* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::QuantizedConvolutionBias* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::QuantizedConvolutionBiasAdd* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::QuantizedConvolutionBiasSignedAdd* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::QuantizedConvolutionRelu* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::QuantizedDot* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::QuantizedDotBias* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::QuantizedMaxPool* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Recv* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Range* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Relu* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::ReluBackprop* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::ReplaceSlice* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Reshape* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Result* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Reverse* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::ReverseSequence* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::ScalarConstantLike* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::ScatterAdd* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::ScatterNDAdd* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Select* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Send* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::ShapeOf* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Sigmoid* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::SigmoidBackprop* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Sign* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Sin* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Sinh* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Slice* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Softmax* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Sqrt* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::StopGradient* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Subtract* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Sum* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Tan* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Tanh* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Tile* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::TopK* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
+
+void runtime::interpreter::INTExecutable::execute_op(
+    ngraph::op::Transpose* node,
+    const vector<shared_ptr<runtime::Tensor>>& outputs,
+    const vector<shared_ptr<runtime::Tensor>>& inputs)
+{
+    NGRAPH_INFO;
+}
