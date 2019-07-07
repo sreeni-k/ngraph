@@ -155,7 +155,6 @@
 #include "ngraph/runtime/reference/tanh.hpp"
 #include "ngraph/runtime/reference/topk.hpp"
 #include "ngraph/runtime/tensor.hpp"
-#include "ngraph/state/rng_state.hpp"
 
 namespace ngraph
 {
@@ -163,11 +162,11 @@ namespace ngraph
     {
         namespace interpreter
         {
-            class INTBackend;
             class INTExecutable;
-        } // namespace interpreter
-    }     // namespace runtime
-} // namespace ngraph
+            class INTBackend;
+        }
+    }
+}
 
 class ngraph::runtime::interpreter::INTExecutable : public Executable
 {
@@ -186,6 +185,11 @@ public:
 
     std::vector<PerformanceCounter> get_performance_data() const override;
 
+    static void execute_op(const element::Type& type,
+                           NodeWrapper& op,
+                           const std::vector<std::shared_ptr<HostTensor>>& outputs,
+                           const std::vector<std::shared_ptr<HostTensor>>& inputs);
+
 private:
     INTExecutable(const std::string& model_string);
 
@@ -196,21 +200,15 @@ private:
     std::shared_ptr<Function> m_function;
     std::unordered_map<std::shared_ptr<const Node>, stopwatch> m_timer_map;
     std::vector<NodeWrapper> m_wrapped_nodes;
-    std::unordered_map<const Node*, std::shared_ptr<RNGState>> m_states;
     std::set<std::string> m_unsupported_op_name_list;
 
     static void perform_nan_check(const std::vector<std::shared_ptr<HostTensor>>&,
                                   const Node* op = nullptr);
 
-    void generate_calls(const element::Type& type,
-                        const NodeWrapper& op,
-                        const std::vector<std::shared_ptr<HostTensor>>& outputs,
-                        const std::vector<std::shared_ptr<HostTensor>>& inputs);
-
     template <typename T>
-    void op_engine(const NodeWrapper& node_wrapper,
-                   const std::vector<std::shared_ptr<HostTensor>>& out,
-                   const std::vector<std::shared_ptr<HostTensor>>& args)
+    static void op_engine(NodeWrapper& node_wrapper,
+                          const std::vector<std::shared_ptr<HostTensor>>& out,
+                          const std::vector<std::shared_ptr<HostTensor>>& args)
     {
         const Node& node = *node_wrapper.get_node();
 
@@ -372,16 +370,18 @@ private:
         case OP_TYPEID::GenerateMask:
         {
             bool use_seed = static_cast<bool>(args[2]->get_data_ptr<const int32_t>()[0]);
-            if (m_states.count(&node) == 0)
+            RNGState* state = node_wrapper.get_rng_state();
+            if (!state)
             {
                 const op::GenerateMask* gm = static_cast<const op::GenerateMask*>(&node);
                 auto seed = use_seed ? gm->get_seed() : 0;
-                m_states[&node] = std::unique_ptr<ngraph::RNGState>(
-                    ngraph::RNGState::create_rng_state(seed, gm->get_probability()));
+                auto rng_state = std::shared_ptr<RNGState>(
+                    RNGState::create_rng_state(seed, gm->get_probability()));
+                node_wrapper.set_rng_state(rng_state);
+                state = node_wrapper.get_rng_state();
             }
 
             bool training = static_cast<bool>(args[0]->get_data_ptr<const T>()[0]);
-            auto state = m_states.at(&node).get();
             size_t element_count = shape_size(node.get_output_shape(0));
             if (!use_seed)
             {

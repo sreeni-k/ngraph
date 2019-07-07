@@ -119,7 +119,7 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
     }
 
     // for each ordered op in the graph
-    for (const NodeWrapper& wrapped : m_wrapped_nodes)
+    for (NodeWrapper& wrapped : m_wrapped_nodes)
     {
         auto op = wrapped.get_node();
         auto type_id = wrapped.get_typeid();
@@ -189,7 +189,7 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
         {
             m_timer_map[op].start();
         }
-        generate_calls(type, wrapped, op_outputs, op_inputs);
+        execute_op(type, wrapped, op_outputs, op_inputs);
         if (m_performance_counters_enabled)
         {
             m_timer_map[op].stop();
@@ -203,10 +203,10 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
     return true;
 }
 
-void runtime::interpreter::INTExecutable::generate_calls(const element::Type& type,
-                                                         const NodeWrapper& op,
-                                                         const vector<shared_ptr<HostTensor>>& out,
-                                                         const vector<shared_ptr<HostTensor>>& in)
+void runtime::interpreter::INTExecutable::execute_op(const element::Type& type,
+                                                     NodeWrapper& op,
+                                                     const vector<shared_ptr<HostTensor>>& out,
+                                                     const vector<shared_ptr<HostTensor>>& in)
 {
     stringstream ss;
     switch (type.get_type_enum())

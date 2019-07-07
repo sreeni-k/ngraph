@@ -19,6 +19,7 @@
 #include <memory>
 
 #include "ngraph/node.hpp"
+#include "ngraph/state/rng_state.hpp"
 
 namespace ngraph
 {
@@ -56,7 +57,10 @@ public:
 
     std::shared_ptr<const Node> get_node() const { return m_node; }
     ngraph::runtime::interpreter::OP_TYPEID get_typeid() const { return m_typeid; }
-private:
+    RNGState* get_rng_state() { return m_rng_state.get(); }
+    void set_rng_state(const std::shared_ptr<RNGState>& value) { m_rng_state = value; }
+protected:
     std::shared_ptr<const ngraph::Node> m_node;
     OP_TYPEID m_typeid;
+    std::shared_ptr<RNGState> m_rng_state;
 };
