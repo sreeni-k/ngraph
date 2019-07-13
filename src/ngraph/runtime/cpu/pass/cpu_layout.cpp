@@ -36,10 +36,8 @@
 #include "ngraph/op/dequantize.hpp"
 #include "ngraph/op/experimental/quantized_avg_pool.hpp"
 #include "ngraph/op/experimental/quantized_concat.hpp"
-#include "ngraph/op/experimental/quantized_conv.hpp"
 #include "ngraph/op/experimental/quantized_conv_bias.hpp"
 #include "ngraph/op/experimental/quantized_conv_relu.hpp"
-#include "ngraph/op/experimental/quantized_dot.hpp"
 #include "ngraph/op/experimental/quantized_dot_bias.hpp"
 #include "ngraph/op/experimental/quantized_max_pool.hpp"
 #include "ngraph/op/fused/conv_fused.hpp"
@@ -49,6 +47,7 @@
 #include "ngraph/op/max_pool.hpp"
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/quantize.hpp"
+#include "ngraph/op/quantized_convolution.hpp"
 #include "ngraph/op/relu.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/result.hpp"
@@ -69,6 +68,7 @@
 #include "ngraph/runtime/cpu/op/leaky_relu.hpp"
 #include "ngraph/runtime/cpu/op/lstm.hpp"
 #include "ngraph/runtime/cpu/op/max_pool_with_indices.hpp"
+#include "ngraph/runtime/cpu/op/quantized_matmul.hpp"
 #include "ngraph/runtime/cpu/op/rnn.hpp"
 
 using namespace std;
@@ -395,8 +395,13 @@ namespace ngraph
                     std::unique_ptr<convolution_forward::desc> fwd_desc{nullptr};
                     auto convolution_algo = mkldnn_utils::get_conv_algo();
 
-                    if (node->get_input_element_type(0) != element::f32 &&
-                        convolution_algo != mkldnn::algorithm::convolution_direct)
+                    // I/p channels less than 8 & convolution_algo = convolution_auto
+                    // forces src format to be nChw16c & the weight format to be
+                    // OIhw16i16o which invokes mkldnn reference implementation of conv
+                    // which crashes as it has no support for post ops
+                    if ((node->get_input_element_type(0) != element::f32 &&
+                         convolution_algo != mkldnn::algorithm::convolution_direct) ||
+                        arg0_shape[1] <= 8)
                     {
                         convolution_algo = mkldnn::algorithm::convolution_direct;
                     }
@@ -549,10 +554,26 @@ namespace ngraph
                         ConvolutionLayout<ngraph::op::QuantizedConvolution, false>(
                             node, i_mds, o_mds);
 
-                        auto scale_input_md = mkldnn_utils::create_default_mkldnn_md(
+                        auto input_scale_md = mkldnn_utils::create_default_mkldnn_md(
                             node.get(), 2, false, memory::format::x);
+                        auto input_zero_point_md = mkldnn_utils::create_default_mkldnn_md(
+                            node.get(), 3, false, memory::format::x);
+                        auto filter_scale_md = mkldnn_utils::create_default_mkldnn_md(
+                            node.get(), 4, false, memory::format::x);
+                        auto filter_zero_point_md = mkldnn_utils::create_default_mkldnn_md(
+                            node.get(), 5, false, memory::format::x);
+                        auto output_scale_md = mkldnn_utils::create_default_mkldnn_md(
+                            node.get(), 6, false, memory::format::x);
+                        auto output_zero_point_md = mkldnn_utils::create_default_mkldnn_md(
+                            node.get(), 7, false, memory::format::x);
 
-                        i_mds.push_back(scale_input_md);
+                        i_mds.push_back(input_scale_md);
+                        i_mds.push_back(input_zero_point_md);
+                        i_mds.push_back(filter_scale_md);
+                        i_mds.push_back(filter_zero_point_md);
+                        i_mds.push_back(output_scale_md);
+                        i_mds.push_back(output_zero_point_md);
+
                         node = insert_input_conversions(external_function, node, i_mds);
                         set_output_layouts(node, o_mds);
                     }
@@ -738,13 +759,13 @@ namespace ngraph
                 }
 
                 template <>
-                void CPULayout::LAYOUT_DECL(ngraph::op::QuantizedDot)
+                void CPULayout::LAYOUT_DECL(ngraph::op::QuantizedMatmul)
                 {
                     if (mkldnn_utils::use_mkldnn_kernel(node.get()))
                     {
                         vector<memory::desc> i_mds;
                         vector<memory::desc> o_mds;
-                        InnerProductLayout<ngraph::op::QuantizedDot, false>(node, i_mds, o_mds);
+                        InnerProductLayout<ngraph::op::QuantizedMatmul, false>(node, i_mds, o_mds);
 
                         auto scale_input_md = mkldnn_utils::create_default_mkldnn_md(
                             node.get(), 2, false, memory::format::x);
@@ -2394,8 +2415,8 @@ static const runtime::cpu::pass::LayoutOpMap s_dispatcher{
      &runtime::cpu::pass::CPULayout::layout<ngraph::op::QuantizedConcat>},
     {TI(ngraph::op::QuantizedDotBias),
      &runtime::cpu::pass::CPULayout::layout<ngraph::op::QuantizedDotBias>},
-    {TI(ngraph::op::QuantizedDot),
-     &runtime::cpu::pass::CPULayout::layout<ngraph::op::QuantizedDot>},
+    {TI(ngraph::op::QuantizedMatmul),
+     &runtime::cpu::pass::CPULayout::layout<ngraph::op::QuantizedMatmul>},
 };
 
 bool runtime::cpu::pass::CPULayout::run_on_call_graph(const std::list<std::shared_ptr<Node>>& nodes)

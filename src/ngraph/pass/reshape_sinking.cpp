@@ -250,7 +250,11 @@ static void materialize_shapes(shared_ptr<Node> n,
             NGRAPH_DEBUG << "Materializing " << describe_reshape(reorders.at(arg)) << " for "
                          << arg->get_name();
             mark_reshape_for_deletion(reorders.at(arg), reshapes_to_delete);
-            insert_reshape(n, reorders.at(arg), i);
+            if (reorders.at(arg)->get_input_order() != get_default_order(arg->get_shape()))
+            {
+                // Insert if arg needs to be transposed.
+                insert_reshape(n, reorders.at(arg), i);
+            }
             //no swimming up
         }
     }
@@ -376,8 +380,8 @@ static void
 
     auto new_lower = ngraph::apply_permutation(n->get_padding_below(), def_order);
     auto new_upper = ngraph::apply_permutation(n->get_padding_above(), def_order);
-    auto new_pad =
-        make_shared<op::Pad>(dummy_correct_shape, n->get_argument(1), new_lower, new_upper);
+    auto new_pad = make_shared<op::Pad>(
+        dummy_correct_shape, n->get_argument(1), new_lower, new_upper, n->get_pad_mode());
     ngraph::replace_node(dummy_correct_shape, n->get_argument(0));
     NGRAPH_DEBUG << "Replacing " << n->get_name() << " with " << new_pad->get_name();
     ngraph::replace_node(n, new_pad);

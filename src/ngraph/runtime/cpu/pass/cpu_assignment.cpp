@@ -34,10 +34,8 @@
 #include "ngraph/op/dequantize.hpp"
 #include "ngraph/op/experimental/quantized_avg_pool.hpp"
 #include "ngraph/op/experimental/quantized_concat.hpp"
-#include "ngraph/op/experimental/quantized_conv.hpp"
 #include "ngraph/op/experimental/quantized_conv_bias.hpp"
 #include "ngraph/op/experimental/quantized_conv_relu.hpp"
-#include "ngraph/op/experimental/quantized_dot.hpp"
 #include "ngraph/op/experimental/quantized_dot_bias.hpp"
 #include "ngraph/op/experimental/quantized_max_pool.hpp"
 #include "ngraph/op/fused/conv_fused.hpp"
@@ -46,8 +44,10 @@
 #include "ngraph/op/lrn.hpp"
 #include "ngraph/op/max_pool.hpp"
 #include "ngraph/op/quantize.hpp"
+#include "ngraph/op/quantized_convolution.hpp"
 #include "ngraph/op/relu.hpp"
 #include "ngraph/op/replace_slice.hpp"
+#include "ngraph/op/scatter_add.hpp"
 #include "ngraph/op/slice.hpp"
 #include "ngraph/op/softmax.hpp"
 #include "ngraph/runtime/cpu/cpu_op_annotations.hpp"
@@ -61,6 +61,7 @@
 #include "ngraph/runtime/cpu/op/leaky_relu.hpp"
 #include "ngraph/runtime/cpu/op/lstm.hpp"
 #include "ngraph/runtime/cpu/op/max_pool_with_indices.hpp"
+#include "ngraph/runtime/cpu/op/quantized_matmul.hpp"
 #include "ngraph/runtime/cpu/op/rnn.hpp"
 #include "ngraph/runtime/cpu/op/sigmoid.hpp"
 #include "ngraph/runtime/cpu/op/update_slice.hpp"
@@ -528,6 +529,21 @@ namespace ngraph
                 }
 
                 template <>
+                void CPUAssignment::ASSIGN_DECL(ngraph::op::ScatterAdd)
+                {
+                    auto update_slice = static_cast<ngraph::op::ScatterAdd*>(node);
+
+                    auto op_annotations =
+                        std::make_shared<ngraph::runtime::cpu::CPUOpAnnotations>();
+                    if (get_user_count(node->get_argument(0).get()) == 1)
+                    {
+                        // Safe to overwrite input
+                        op_annotations->add_in_place_oi_pair({0, 0, true});
+                    }
+                    update_slice->set_op_annotations(op_annotations);
+                }
+
+                template <>
                 void CPUAssignment::ASSIGN_DECL(ngraph::op::LRN)
                 {
                     auto arg0_shape = node->get_input_shape(0);
@@ -706,9 +722,9 @@ namespace ngraph
                 }
 
                 template <>
-                void CPUAssignment::ASSIGN_DECL(ngraph::op::LeakyRelu)
+                void CPUAssignment::ASSIGN_DECL(ngraph::op::CPULeakyRelu)
                 {
-                    auto leaky_relu = static_cast<ngraph::op::LeakyRelu*>(node);
+                    auto leaky_relu = static_cast<ngraph::op::CPULeakyRelu*>(node);
 
                     auto arg0_shape = node->get_input_shape(0);
                     auto arg0_rank = arg0_shape.size();
@@ -732,9 +748,25 @@ namespace ngraph
                 template <>
                 void CPUAssignment::ASSIGN_DECL(ngraph::op::QuantizedConvolution)
                 {
+                    auto qconv = static_cast<ngraph::op::QuantizedConvolution*>(node);
+                    auto input_zero_point =
+                        dynamic_pointer_cast<ngraph::op::Constant>(qconv->get_argument(3));
+                    auto filter_zero_point =
+                        dynamic_pointer_cast<ngraph::op::Constant>(qconv->get_argument(5));
+                    auto output_zero_point =
+                        dynamic_pointer_cast<ngraph::op::Constant>(qconv->get_argument(7));
                     if (node->get_input_element_type(0) == element::u8 &&
                         node->get_input_element_type(1) == element::i8)
                     {
+                        // Mkldnn assumes zero point to be zero
+                        if (input_zero_point == nullptr || filter_zero_point == nullptr ||
+                            output_zero_point == nullptr || !(ngraph::is_zero(input_zero_point)) ||
+                            !(ngraph::is_zero(filter_zero_point)) ||
+                            !(ngraph::is_zero(output_zero_point)))
+                        {
+                            return;
+                        }
+
                         runtime::cpu::mkldnn_utils::assign_mkldnn_kernel(node);
                     }
                 }
@@ -790,7 +822,7 @@ namespace ngraph
                 }
 
                 template <>
-                void CPUAssignment::ASSIGN_DECL(ngraph::op::QuantizedDot)
+                void CPUAssignment::ASSIGN_DECL(ngraph::op::QuantizedMatmul)
                 {
                     if (node->get_input_element_type(0) == element::u8 &&
                         node->get_input_element_type(1) == element::i8)
@@ -956,7 +988,8 @@ static const runtime::cpu::pass::AssignOpMap s_dispatcher{
     {TI(ngraph::op::Relu), &runtime::cpu::pass::CPUAssignment::assign<ngraph::op::Relu>},
     {TI(ngraph::op::ReluBackprop),
      &runtime::cpu::pass::CPUAssignment::assign<ngraph::op::ReluBackprop>},
-    {TI(ngraph::op::LeakyRelu), &runtime::cpu::pass::CPUAssignment::assign<ngraph::op::LeakyRelu>},
+    {TI(ngraph::op::CPULeakyRelu),
+     &runtime::cpu::pass::CPUAssignment::assign<ngraph::op::CPULeakyRelu>},
     {TI(ngraph::op::Sigmoid), &runtime::cpu::pass::CPUAssignment::assign<ngraph::op::Sigmoid>},
     {TI(ngraph::op::SigmoidBackprop),
      &runtime::cpu::pass::CPUAssignment::assign<ngraph::op::SigmoidBackprop>},
@@ -989,14 +1022,16 @@ static const runtime::cpu::pass::AssignOpMap s_dispatcher{
      &runtime::cpu::pass::CPUAssignment::assign<ngraph::op::Dequantize>},
     {TI(ngraph::op::QuantizedConcat),
      &runtime::cpu::pass::CPUAssignment::assign<ngraph::op::QuantizedConcat>},
-    {TI(ngraph::op::QuantizedDot),
-     &runtime::cpu::pass::CPUAssignment::assign<ngraph::op::QuantizedDot>},
+    {TI(ngraph::op::QuantizedMatmul),
+     &runtime::cpu::pass::CPUAssignment::assign<ngraph::op::QuantizedMatmul>},
     {TI(ngraph::op::QuantizedDotBias),
      &runtime::cpu::pass::CPUAssignment::assign<ngraph::op::QuantizedDotBias>},
     {TI(ngraph::op::GetOutputElement),
      &runtime::cpu::pass::CPUAssignment::assign<ngraph::op::GetOutputElement>},
     {TI(ngraph::op::DeconvolutionBias),
      &runtime::cpu::pass::CPUAssignment::assign<ngraph::op::DeconvolutionBias>},
+    {TI(ngraph::op::ScatterAdd),
+     &runtime::cpu::pass::CPUAssignment::assign<ngraph::op::ScatterAdd>},
 };
 
 bool runtime::cpu::pass::CPUAssignment::run_on_call_graph(

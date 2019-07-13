@@ -72,8 +72,8 @@ void pass::ReshapeElimination::construct_identity_reshape_pattern()
         return true;
     };
 
-    auto m = make_shared<pattern::Matcher>(reshape1, callback);
-    this->add_matcher(m);
+    auto m = make_shared<pattern::Matcher>(reshape1);
+    this->add_matcher(m, callback, PassProperty::REQUIRE_STATIC_SHAPE);
 }
 
 void pass::ReshapeElimination::construct_reshapex2_pattern()
@@ -92,19 +92,33 @@ void pass::ReshapeElimination::construct_reshapex2_pattern()
 
         auto gop = pattern_map[op];
 
+        auto r2 = static_pointer_cast<op::Reshape>(m.get_match_root());
+        auto r1 = static_pointer_cast<op::Reshape>(r2->get_argument(0));
+
         if (gop->get_shape() != m.get_match_root()->get_shape())
         {
-            NGRAPH_DEBUG << "Operand shape doesn't match the shape of the second reshape!";
-            NGRAPH_DEBUG << "gop " << gop->get_name()
-                         << "shape = " << vector_to_string(gop->get_shape());
-            NGRAPH_DEBUG << "match_root " << m.get_match_root()->get_name()
-                         << "shape = " << vector_to_string(m.get_match_root()->get_shape());
-            return false;
+            // First reshape transposes and second reshape only changes shape
+            // Replace with a transpose that changes shape
+            if (apply_permutation(gop->get_shape(), r1->get_input_order()) == r2->get_shape() &&
+                r2->get_input_order() == get_default_order(r1->get_shape()) &&
+                r1->get_users().size() == 1)
+            {
+                replace_node(m.get_match_root(),
+                             make_shared<op::Reshape>(gop, r1->get_input_order(), r2->get_shape()));
+                return true;
+            }
+            else
+            {
+                NGRAPH_DEBUG << "Operand shape doesn't match the shape of the second reshape!";
+                NGRAPH_DEBUG << "gop " << gop->get_name()
+                             << "shape = " << vector_to_string(gop->get_shape());
+                NGRAPH_DEBUG << "match_root " << m.get_match_root()->get_name()
+                             << "shape = " << vector_to_string(m.get_match_root()->get_shape());
+                return false;
+            }
         }
 
-        auto r2 = dynamic_pointer_cast<op::Reshape>(m.get_match_root());
-        auto r1 = dynamic_pointer_cast<op::Reshape>(r2->get_argument(0));
-
+        // Check for sequence of reshapes/transposes that cancel out.
         auto do_r2 = get_default_order(r1->get_shape());
         auto do_r1 = get_default_order(gop->get_shape());
 
@@ -131,8 +145,8 @@ void pass::ReshapeElimination::construct_reshapex2_pattern()
 
         return false;
     };
-    auto m = make_shared<pattern::Matcher>(reshape2, callback);
-    this->add_matcher(m);
+    auto m = make_shared<pattern::Matcher>(reshape2);
+    this->add_matcher(m, callback, PassProperty::REQUIRE_STATIC_SHAPE);
 }
 
 void pass::ReshapeElimination::construct_dot_transpose_pattern()
@@ -145,7 +159,7 @@ void pass::ReshapeElimination::construct_dot_transpose_pattern()
     auto pdot = make_shared<pattern::op::Label>(element::f32, Shape{2, 1}, dot_pred);
     auto preshape = make_shared<op::Reshape>(pdot, AxisVector{1, 0}, Shape{1, 2});
 
-    pattern::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    auto callback = [](pattern::Matcher& m) {
         NGRAPH_DEBUG << "In callback for construct_dot_transpose_pattern against node = "
                      << m.get_match_root()->get_name();
 
@@ -188,8 +202,8 @@ void pass::ReshapeElimination::construct_dot_transpose_pattern()
         return true;
     };
 
-    auto m = make_shared<pattern::Matcher>(preshape, callback);
-    this->add_matcher(m);
+    auto m = make_shared<pattern::Matcher>(preshape);
+    this->add_matcher(m, callback, PassProperty::REQUIRE_STATIC_SHAPE);
 }
 
 void pass::RecurrentReshapeElimination::construct_recurrent_reshape()
@@ -289,7 +303,7 @@ void pass::RecurrentReshapeElimination::construct_recurrent_reshape()
         return modify_graph;
     };
     std::set<std::shared_ptr<pattern::op::Label>> empty_correlated_matches;
-    auto m = std::make_shared<pattern::RecurrentMatcher>(
-        reshape_label, op, empty_correlated_matches, callback);
-    this->add_matcher(m);
+    auto m =
+        std::make_shared<pattern::RecurrentMatcher>(reshape_label, op, empty_correlated_matches);
+    this->add_matcher(m, callback, PassProperty::REQUIRE_STATIC_SHAPE);
 }

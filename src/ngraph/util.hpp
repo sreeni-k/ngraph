@@ -32,7 +32,7 @@
 
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/graph_util.hpp"
-#include "ngraph/node_vector.hpp"
+#include "ngraph/node.hpp"
 #include "ngraph/shape.hpp"
 
 namespace ngraph
@@ -196,6 +196,7 @@ namespace ngraph
     void ngraph_free(void*);
 
     size_t round_up(size_t size, size_t alignment);
+    bool is_valid_permutation(ngraph::AxisVector permutation, ngraph::Rank rank = Rank::dynamic());
     template <typename T>
     T apply_permutation(T input, ngraph::AxisVector order);
 
@@ -204,12 +205,12 @@ namespace ngraph
 
     AxisVector get_permutation_to_default_order(const AxisVector& axis_order);
 
-    /*
-    * Return type struct for cache_fprop, with the modified fprop and bprop
-    * functions
-    * and a list of the nodes that have been appended to fprop output/bprop
-    * input
-    */
+    //
+    // Return type struct for cache_fprop, with the modified fprop and bprop
+    // functions
+    // and a list of the nodes that have been appended to fprop output/bprop
+    // input
+    //
     struct FpropCache
     {
         std::shared_ptr<Function> fprop;
@@ -218,14 +219,14 @@ namespace ngraph
         NodeMap node_param_map;
     };
 
-    /**
-    * This utility takes forward-propogation and back-propagation functions
-    * and turns them into clone functions where the intermediate values of
-    * the forward prop are added to the output of fprop and the input of the bprop
-    * to avoid repeat calculations.
-    * The last argument is the adjoints coming into the bprop function, the output
-    * bprop function will have these nodes as the first N input parameters
-    **/
+    //
+    // This utility takes forward-propogation and back-propagation functions
+    // and turns them into clone functions where the intermediate values of
+    // the forward prop are added to the output of fprop and the input of the bprop
+    // to avoid repeat calculations.
+    // The last argument is the adjoints coming into the bprop function, the output
+    // bprop function will have these nodes as the first N input parameters
+    //
     FpropCache cache_fprop(std::shared_ptr<Function> fprop, std::shared_ptr<Function> bprop);
 
     // NodeExecutors are used in compiler optimization passes like ConstantFolding to execute a node
@@ -237,23 +238,24 @@ namespace ngraph
 
     using BuildNodeExecutorMap = std::unordered_map<std::type_index, BuildNodeExecutor>;
 
-    enum class CPUTensorRole
+    enum class TensorRole
     {
         INPUT,
         CONSTANT,
         OUTPUT,
-        INTERMEDIATE
+        INTERMEDIATE,
+        UNKNOWN
     };
 
-    /**
-     * EnumMask is intended to work with a scoped enum type. It's used to store
-     * a combination of enum values and provides easy access and manipulation
-     * of these enum values as a mask.
-     *
-     * EnumMask does not provide a set_all() or invert() operator because they
-     * could do things unexpected by the user, i.e. for enum with 4 bit values,
-     * invert(001000...) != 110100..., due to the extra bits.
-     */
+    //
+    // EnumMask is intended to work with a scoped enum type. It's used to store
+    // a combination of enum values and provides easy access and manipulation
+    // of these enum values as a mask.
+    //
+    // EnumMask does not provide a set_all() or invert() operator because they
+    // could do things unexpected by the user, i.e. for enum with 4 bit values,
+    // invert(001000...) != 110100..., due to the extra bits.
+    //
     template <typename T>
     class EnumMask
     {
@@ -266,11 +268,11 @@ namespace ngraph
         /// type to use unsigned underlying type.
         static_assert(std::is_unsigned<value_type>::value, "EnumMask enum must use unsigned type.");
 
-        EnumMask()
+        constexpr EnumMask()
             : m_value{0}
         {
         }
-        EnumMask(const T& enum_value)
+        constexpr EnumMask(const T& enum_value)
             : m_value{static_cast<value_type>(enum_value)}
         {
         }
@@ -287,13 +289,13 @@ namespace ngraph
             }
         }
         value_type value() const { return m_value; }
-        /// Check if any of the enum bit mask match
+        /// Check if any of the input parameter enum bit mask match
         bool is_any_set(const EnumMask& p) const { return m_value & p.m_value; }
-        /// Check if all of the enum bit mask match
+        /// Check if all of the input parameter enum bit mask match
         bool is_set(const EnumMask& p) const { return (m_value & p.m_value) == p.m_value; }
-        /// Check if any of the enum bit mask does not match
+        /// Check if any of the input parameter enum bit mask does not match
         bool is_any_clear(const EnumMask& p) const { return !is_set(p); }
-        /// Check if all of the enum bit mask do not match
+        /// Check if all of the input parameter enum bit mask do not match
         bool is_clear(const EnumMask& p) const { return !is_any_set(p); }
         void set(const EnumMask& p) { m_value |= p.m_value; }
         void clear(const EnumMask& p) { m_value &= ~p.m_value; }

@@ -28,6 +28,17 @@ namespace ngraph
         class Concat : public Op
         {
         public:
+            NGRAPH_API
+            static const std::string type_name;
+            const std::string& description() const override { return type_name; }
+            /// \brief Constructs a concatenation operation.
+            Concat() = default;
+            /// \brief Constructs a concatenation operation.
+            ///
+            /// \param args               The outputs producing the input tensors.
+            /// \param concatenation_axis The axis along which to concatenate the input tensors.
+            Concat(const OutputVector& args, size_t concatenation_axis);
+
             /// \brief Constructs a concatenation operation.
             ///
             /// \param args               The nodes producing the input tensors.
@@ -39,14 +50,17 @@ namespace ngraph
             virtual std::shared_ptr<Node>
                 copy_with_new_args(const NodeVector& new_args) const override;
 
-            virtual std::vector<std::shared_ptr<op::Constant>> as_constants() const override;
-
             /// \return The concatenation axis.
             size_t get_concatenation_axis() const { return m_concatenation_axis; }
+            void set_concatenation_axis(size_t concatenation_axis)
+            {
+                m_concatenation_axis = concatenation_axis;
+            }
+
         protected:
             virtual void generate_adjoints(autodiff::Adjoints& adjoints,
                                            const NodeVector& deltas) override;
-            const size_t m_concatenation_axis;
+            size_t m_concatenation_axis;
         };
     }
 }

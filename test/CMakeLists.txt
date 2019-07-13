@@ -14,6 +14,16 @@
 # limitations under the License.
 # ******************************************************************************
 
+add_definitions("-DSERIALIZED_ZOO=\"${CMAKE_CURRENT_SOURCE_DIR}/models\"")
+
+if(NOT NGRAPH_UNIT_TEST_ENABLE)
+    message(STATUS "unit tests disabled")
+    add_subdirectory(util)
+    return()
+endif()
+
+message(STATUS "unit tests enabled")
+
 if(LINUX)
     set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 endif()
@@ -22,12 +32,13 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "4.0.0")
         # gtest has issues with this with v1.8.x
         # gtest issue is supposed to be addressed after v1.8.x
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-zero-as-null-pointer-constant")
+        add_compile_options(-Wno-zero-as-null-pointer-constant)
     endif()
 endif()
 
 set(SRC
     algebraic_simplification.cpp
+    aligned_buffer.cpp
     all_close_f.cpp
     assertion.cpp
     bfloat16.cpp
@@ -41,8 +52,10 @@ set(SRC
     copy.cpp
     cpio.cpp
     cse.cpp
+    dyn_elimination.cpp
     element_type.cpp
     file_util.cpp
+    float16.cpp
     includes.cpp
     input_output_assign.cpp
     main.cpp
@@ -56,15 +69,15 @@ set(SRC
     pass_manager.cpp
     pass_memory_layout.cpp
     pass_shape_relevance.cpp
-    pass_shape_specialization.cpp
     pattern.cpp
     provenance.cpp
     reshape_elimination.cpp
     reshape_sinking.cpp
     shape.cpp
-    specialize_shapes.cpp
+    specialize_function.cpp
     tensor.cpp
     type_prop.cpp
+    type_prop_layers.cpp
     util.cpp
     zero_dim_tensor_elimination.cpp
 )
@@ -77,10 +90,6 @@ if(NOT WIN32 AND NGRAPH_TOOLS_ENABLE)
     list(APPEND SRC tools.cpp)
 endif()
 
-if(NGRAPH_DISTRIBUTED_ENABLE)
-    list(APPEND SRC distributed_setup.cpp)
-endif()
-
 set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
     NGRAPH_INCLUDES="${PROJECT_SOURCE_DIR}/src/ngraph")
 
@@ -89,15 +98,12 @@ if (NGRAPH_INTERPRETER_ENABLE)
         backend_debug_api.cpp
         builder.cpp
         backend_api.cpp)
-        if (NGRAPH_CPU_ENABLE)
-            list(APPEND SRC hybrid_backend.cpp)
-        endif()
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} INTERPRETER)
 endif()
 
 if (NGRAPH_CPU_ENABLE)
     list(APPEND SRC core_fusion.cpp builder_quantization.cpp)
-    list(APPEND SRC backend_performance.cpp cpu_fusion.cpp cpu_test.cpp cpu_debugger.cpp)
+    list(APPEND SRC backend_performance.cpp cpu_fusion.cpp cpu_test.cpp cpu_debugger.cpp cpu_debug_tracer.cpp)
     if (NOT NGRAPH_DEX_ONLY)
         list(APPEND SRC cpu_codegen.cpp)
     endif()
@@ -128,14 +134,15 @@ if (NGRAPH_GENERIC_CPU_ENABLE)
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} GCPU)
 endif()
 
-add_subdirectory(models)
-add_subdirectory(files)
+add_definitions("-DTEST_FILES=\"${CMAKE_CURRENT_SOURCE_DIR}/files\"")
 add_subdirectory(util)
 
 # backend specific test files must meet the following requirements:
 # 1) The must be named <name>.in.cpp
 # 2) They must be in the test directory
-# 3) add the line `static string s_manifest = "${MANIFEST}";` to your cpp file
+# 3) Include "util/test_control.hpp" in your cpp file
+# 4) add the line `static string s_manifest = "${MANIFEST}";` to your cpp file
+# 5) Use the `NGRAPH_TEST` macro in place of `TEST`.
 # All such files are configured via cmake which replaces all instances of cmake variables
 # such as ${BACKEND_NAME} with their values, such as CPU, GPU, or INTERPRETER.
 set(MULTI_TEST_SRC
@@ -153,13 +160,21 @@ set(MULTI_TEST_SRC
     backend_one_hot.in.cpp
     backend_pool.in.cpp
     backend_reshape.in.cpp
+    backend_scatter.in.cpp
     backend_sum.in.cpp
     backend_topk.in.cpp
     backend_arg_reduce.in.cpp
     backend_test.in.cpp
     backend_unary_elementwise.in.cpp
     convolution_test.in.cpp
+    dyn_replace_slice_test.in.cpp
+    dyn_slice_test.in.cpp
+    dynamic.in.cpp
 )
+
+if (NGRAPH_MLIR_ENABLE)
+    list(APPEND MULTI_TEST_SRC backend_mlir.in.cpp)
+endif()
 
 if(NGRAPH_DISTRIBUTED_ENABLE)
     list(APPEND MULTI_TEST_SRC distributed.in.cpp)
@@ -209,25 +224,11 @@ add_executable(unit-test ${SRC})
 
 target_include_directories(unit-test PRIVATE ".")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCURDIR=\\\"${CMAKE_CURRENT_SOURCE_DIR}\\\"")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DJSON_INCLUDES=\\\"${JSON_INCLUDE_DIR}\\\"")
+add_definitions("-DCURDIR=\"${CMAKE_CURRENT_SOURCE_DIR}\"")
+add_definitions("-DJSON_INCLUDES=\"${JSON_INCLUDE_DIR}\"")
 
 if(NGRAPH_ADDRESS_SANITIZER)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fsanitize=address -fno-omit-frame-pointer")
-endif()
-
-if(NGRAPH_DISTRIBUTED_ENABLE)
-    if(NGRAPH_DISTRIBUTED_MLSL_ENABLE)
-        target_link_libraries(unit-test PRIVATE libmlsl)
-    elseif(NGRAPH_DISTRIBUTED_OMPI_ENABLE)
-        find_package(MPI REQUIRED)
-        target_include_directories(unit-test
-        SYSTEM PRIVATE ${MPI_C_INCLUDE_PATH} ${MPI_CXX_INCLUDE_PATH})
-        target_link_libraries(unit-test PRIVATE ${MPI_C_LIBRARIES} ${MPI_CXX_LIBRARIES})
-    else()
-            message(FATAL_ERROR "Distributed Library not supported/mentioned")
-    endif()
+    add_compile_options(-g -fsanitize=address -fno-omit-frame-pointer)
 endif()
 
 target_link_libraries(unit-test PRIVATE ngraph_test_util)
@@ -242,6 +243,12 @@ target_link_libraries(unit-test PRIVATE ${CMAKE_DL_LIBS})
 
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "^(Apple)?Clang$")
     target_compile_options(unit-test PRIVATE -Wno-undef -Wno-reserved-id-macro)
+endif()
+
+# So many type_prop tests these days that we need to set /bigobj flag for MSVS.
+# We should probably split up type_prop.cpp.
+if (MSVS)
+    target_compile_options(unit-test PRIVATE "/bigobj")
 endif()
 
 if (NGRAPH_CPU_ENABLE)
@@ -259,6 +266,8 @@ endif()
 
 if (NGRAPH_PLAIDML_ENABLE)
     target_link_libraries(unit-test PRIVATE plaidml_backend)
+    # Some PlaidML devices aren't so precise, so we increase the allowable tolerance.
+    target_compile_definitions(unit-test PRIVATE "PlaidML_FLOAT_TOLERANCE_BITS=12")
 endif()
 
 if (NGRAPH_TBB_ENABLE)

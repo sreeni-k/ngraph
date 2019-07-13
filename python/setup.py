@@ -143,17 +143,14 @@ sources = [
     'pyngraph/function.cpp',
     'pyngraph/serializer.cpp',
     'pyngraph/node.cpp',
-    'pyngraph/node_vector.cpp',
     'pyngraph/shape.cpp',
     'pyngraph/strides.cpp',
     'pyngraph/coordinate_diff.cpp',
     'pyngraph/axis_set.cpp',
     'pyngraph/axis_vector.cpp',
     'pyngraph/coordinate.cpp',
-    'pyngraph/parameter_vector.cpp',
     'pyngraph/pyngraph.cpp',
     'pyngraph/util.cpp',
-    'pyngraph/result_vector.cpp',
     'pyngraph/ops/util/arithmetic_reduction.cpp',
     'pyngraph/ops/util/binary_elementwise_comparison.cpp',
     'pyngraph/ops/util/op_annotations.cpp',
@@ -329,6 +326,7 @@ def add_platform_specific_link_args(link_args):
         link_args += ['-z', 'now']
     elif sys.platform == 'darwin':
         link_args += ['-Wl,-rpath,@loader_path/../..']
+        link_args += ['-stdlib=libc++']
 
 
 class BuildExt(build_ext):
@@ -363,6 +361,8 @@ class BuildExt(build_ext):
 
             ext.extra_compile_args += ['-Wformat', '-Wformat-security']
             ext.extra_compile_args += ['-O2', '-D_FORTIFY_SOURCE=2']
+            if sys.platform == 'darwin':
+                ext.extra_compile_args += ['-stdlib=libc++']
         build_ext.build_extensions(self)
 
 
@@ -384,10 +384,10 @@ setup(
     packages=packages,
     cmdclass={'build_ext': BuildExt},
     data_files=data_files,
-    setup_requires=['numpy'],
+    setup_requires=['numpy==1.16.4'],
     install_requires=requirements,
     zip_safe=False,
     extras_require={
-        'plaidml': ['plaidml>=0.5.0'],
+        'plaidml': ['plaidml>=0.6.3'],
     },
 )

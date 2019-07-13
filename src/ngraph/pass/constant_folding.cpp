@@ -22,16 +22,20 @@
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/convert.hpp"
 #include "ngraph/op/dequantize.hpp"
 #include "ngraph/op/divide.hpp"
+#include "ngraph/op/experimental/shape_of.hpp"
 #include "ngraph/op/maximum.hpp"
 #include "ngraph/op/minimum.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/negative.hpp"
 #include "ngraph/op/pad.hpp"
+#include "ngraph/op/product.hpp"
 #include "ngraph/op/quantize.hpp"
 #include "ngraph/op/relu.hpp"
 #include "ngraph/op/reshape.hpp"
+#include "ngraph/op/reverse.hpp"
 #include "ngraph/op/sqrt.hpp"
 #include "ngraph/op/subtract.hpp"
 #include "ngraph/pattern/matcher.hpp"
@@ -39,6 +43,7 @@
 #include "ngraph/runtime/reference/abs.hpp"
 #include "ngraph/runtime/reference/add.hpp"
 #include "ngraph/runtime/reference/broadcast.hpp"
+#include "ngraph/runtime/reference/convert.hpp"
 #include "ngraph/runtime/reference/dequantize.hpp"
 #include "ngraph/runtime/reference/divide.hpp"
 #include "ngraph/runtime/reference/maximum.hpp"
@@ -46,9 +51,11 @@
 #include "ngraph/runtime/reference/multiply.hpp"
 #include "ngraph/runtime/reference/negate.hpp"
 #include "ngraph/runtime/reference/pad.hpp"
+#include "ngraph/runtime/reference/product.hpp"
 #include "ngraph/runtime/reference/quantize.hpp"
 #include "ngraph/runtime/reference/relu.hpp"
 #include "ngraph/runtime/reference/reshape.hpp"
+#include "ngraph/runtime/reference/reverse.hpp"
 #include "ngraph/runtime/reference/sqrt.hpp"
 #include "ngraph/runtime/reference/subtract.hpp"
 #include "ngraph/util.hpp"
@@ -180,9 +187,8 @@ void pass::ConstantFolding::construct_constant_pad()
         return false;
     };
 
-    auto pad_matcher =
-        make_shared<pattern::Matcher>(pad, constant_pad_callback, "ConstantFolding.ConstantPad");
-    this->add_matcher(pad_matcher);
+    auto pad_matcher = make_shared<pattern::Matcher>(pad, "ConstantFolding.ConstantPad");
+    this->add_matcher(pad_matcher, constant_pad_callback, PassProperty::REQUIRE_STATIC_SHAPE);
 }
 
 void pass::ConstantFolding::construct_constant_reshape()
@@ -213,7 +219,13 @@ void pass::ConstantFolding::construct_constant_reshape()
         if (type == element::i32)
         {
             replace_node(m.get_match_root(),
-                         fold_constant_reshape<int>(constant_match, reshape_match, func));
+                         fold_constant_reshape<int32_t>(constant_match, reshape_match, func));
+            return true;
+        }
+        if (type == element::i64)
+        {
+            replace_node(m.get_match_root(),
+                         fold_constant_reshape<int64_t>(constant_match, reshape_match, func));
             return true;
         }
         else if (type == element::i8)
@@ -234,13 +246,21 @@ void pass::ConstantFolding::construct_constant_reshape()
                          fold_constant_reshape<double>(constant_match, reshape_match, func));
             return true;
         }
+        else if (type == element::bf16)
+        {
+            replace_node(
+                m.get_match_root(),
+                fold_constant_reshape<ngraph::bfloat16>(constant_match, reshape_match, func));
+            return true;
+        }
 
         return false;
     };
 
-    auto reshape_matcher = make_shared<pattern::Matcher>(
-        reshape, constant_reshape_callback, "ConstantFolding.ConstantReshape");
-    this->add_matcher(reshape_matcher);
+    auto reshape_matcher =
+        make_shared<pattern::Matcher>(reshape, "ConstantFolding.ConstantReshape");
+    this->add_matcher(
+        reshape_matcher, constant_reshape_callback, PassProperty::REQUIRE_STATIC_SHAPE);
 }
 
 template <class T>
@@ -322,13 +342,21 @@ void pass::ConstantFolding::construct_constant_broadcast()
                          fold_constant_broadcast<double>(constant_match, broadcast_match, func));
             return true;
         }
+        else if (type == element::bf16)
+        {
+            replace_node(
+                m.get_match_root(),
+                fold_constant_broadcast<ngraph::bfloat16>(constant_match, broadcast_match, func));
+            return true;
+        }
 
         return false;
     };
 
-    auto broadcast_matcher = make_shared<pattern::Matcher>(
-        broadcast, constant_broadcast_callback, "ConstantFolding.ConstantBroadcast");
-    this->add_matcher(broadcast_matcher);
+    auto broadcast_matcher =
+        make_shared<pattern::Matcher>(broadcast, "ConstantFolding.ConstantBroadcast");
+    this->add_matcher(
+        broadcast_matcher, constant_broadcast_callback, PassProperty::REQUIRE_STATIC_SHAPE);
 }
 
 template <class T>
@@ -369,8 +397,13 @@ shared_ptr<op::Constant> fold_constant_binary(shared_ptr<op::Constant> a,
         }
         else if (std::dynamic_pointer_cast<op::Divide>(binary))
         {
-            runtime::reference::divide<T>(
-                a->get_data_ptr<T>(), b->get_data_ptr<T>(), out_vec.data(), shape_size(out_shape));
+            shared_ptr<op::Divide> divop = std::dynamic_pointer_cast<op::Divide>(binary);
+            bool pythondiv = divop->is_pythondiv();
+            runtime::reference::divide<T>(a->get_data_ptr<T>(),
+                                          b->get_data_ptr<T>(),
+                                          out_vec.data(),
+                                          shape_size(out_shape),
+                                          pythondiv);
         }
         else if (std::dynamic_pointer_cast<op::Minimum>(binary))
         {
@@ -464,9 +497,9 @@ void pass::ConstantFolding::construct_constant_binary()
         return false;
     };
 
-    auto reshape_matcher = make_shared<pattern::Matcher>(
-        bea, constant_binary_callback, "ConstantFolding.ConstantBinary");
-    this->add_matcher(reshape_matcher);
+    auto reshape_matcher = make_shared<pattern::Matcher>(bea, "ConstantFolding.ConstantBinary");
+    this->add_matcher(
+        reshape_matcher, constant_binary_callback, PassProperty::REQUIRE_STATIC_SHAPE);
 }
 
 bool is_supported_unary_op(std::shared_ptr<Node> n)
@@ -595,9 +628,8 @@ void pass::ConstantFolding::construct_constant_unary()
         return false;
     };
 
-    auto reshape_matcher = make_shared<pattern::Matcher>(
-        uea, constant_unary_callback, "ConstantFolding.ConstantUnary");
-    this->add_matcher(reshape_matcher);
+    auto reshape_matcher = make_shared<pattern::Matcher>(uea, "ConstantFolding.ConstantUnary");
+    this->add_matcher(reshape_matcher, constant_unary_callback, PassProperty::REQUIRE_STATIC_SHAPE);
 }
 
 template <class QUANT, class REAL>
@@ -668,9 +700,10 @@ void pass::ConstantFolding::construct_constant_dequantize()
         return false;
     };
 
-    auto dequantize_matcher = make_shared<pattern::Matcher>(
-        dequant, constant_dequantize_callback, "ConstantFolding.ConstantDequantize");
-    this->add_matcher(dequantize_matcher);
+    auto dequantize_matcher =
+        make_shared<pattern::Matcher>(dequant, "ConstantFolding.ConstantDequantize");
+    this->add_matcher(
+        dequantize_matcher, constant_dequantize_callback, PassProperty::REQUIRE_STATIC_SHAPE);
 }
 
 template <class REAL, class QUANT>
@@ -743,7 +776,371 @@ void pass::ConstantFolding::construct_constant_quantize()
         return false;
     };
 
-    auto quantize_matcher = make_shared<pattern::Matcher>(
-        quant, constant_quantize_callback, "ConstantFolding.ConstantQuantize");
-    this->add_matcher(quantize_matcher);
+    auto quantize_matcher =
+        make_shared<pattern::Matcher>(quant, "ConstantFolding.ConstantQuantize");
+    this->add_matcher(
+        quantize_matcher, constant_quantize_callback, PassProperty::REQUIRE_STATIC_SHAPE);
+}
+
+// Helper for mapping element::Types to runtime::reference::convert, which is templated in C++
+// data types. Used by fold_constant_convert and fold_constant_convert_helper0, which respectively
+// determine the appropriate C++ types for "TI" (input type) and "TO" (output type).
+template <typename TI, typename TO>
+shared_ptr<op::Constant> fold_constant_convert_helper1(shared_ptr<op::Constant> constant,
+                                                       const element::Type& output_element_type)
+{
+    auto out_shape = constant->get_shape();
+    vector<TO> out_vec(shape_size(out_shape));
+
+    runtime::reference::convert<TI, TO>(
+        constant->get_vector<TI>().data(), out_vec.data(), shape_size(out_shape));
+
+    return make_shared<op::Constant>(output_element_type, out_shape, out_vec);
+}
+
+// Helper for mapping element::Types to runtime::reference::convert, which is templated in C++
+// data types. Used by fold_constant_convert, which determines the appropriate C++ type for "TI"
+// (input type).
+template <typename TI>
+shared_ptr<op::Constant> fold_constant_convert_helper0(shared_ptr<op::Constant> constant,
+                                                       const element::Type& output_element_type)
+{
+#if !(defined(__GNUC__) && (__GNUC__ == 4 && __GNUC_MINOR__ == 8))
+#pragma GCC diagnostic push
+#pragma GCC diagnostic error "-Wswitch"
+#pragma GCC diagnostic error "-Wswitch-enum"
+#endif
+    switch (output_element_type.get_type_enum())
+    {
+    case element::Type_t::undefined:
+        NGRAPH_CHECK(false, "Encountered 'undefined' element type in fold_constant_convert");
+        break;
+    case element::Type_t::dynamic:
+        NGRAPH_CHECK(false, "Encountered 'dynamic' element type in fold_constant_convert");
+        break;
+    case element::Type_t::boolean:
+        return fold_constant_convert_helper1<TI, char>(constant, output_element_type);
+    case element::Type_t::bf16:
+        return fold_constant_convert_helper1<TI, bfloat16>(constant, output_element_type);
+    case element::Type_t::f16:
+        return fold_constant_convert_helper1<TI, float16>(constant, output_element_type);
+    case element::Type_t::f32:
+        return fold_constant_convert_helper1<TI, float>(constant, output_element_type);
+    case element::Type_t::f64:
+        return fold_constant_convert_helper1<TI, double>(constant, output_element_type);
+    case element::Type_t::i8:
+        return fold_constant_convert_helper1<TI, int8_t>(constant, output_element_type);
+    case element::Type_t::i16:
+        return fold_constant_convert_helper1<TI, int16_t>(constant, output_element_type);
+    case element::Type_t::i32:
+        return fold_constant_convert_helper1<TI, int32_t>(constant, output_element_type);
+    case element::Type_t::i64:
+        return fold_constant_convert_helper1<TI, int64_t>(constant, output_element_type);
+    case element::Type_t::u8:
+        return fold_constant_convert_helper1<TI, uint8_t>(constant, output_element_type);
+    case element::Type_t::u16:
+        return fold_constant_convert_helper1<TI, uint16_t>(constant, output_element_type);
+    case element::Type_t::u32:
+        return fold_constant_convert_helper1<TI, uint32_t>(constant, output_element_type);
+    case element::Type_t::u64:
+        return fold_constant_convert_helper1<TI, uint64_t>(constant, output_element_type);
+    }
+#if !(defined(__GNUC__) && (__GNUC__ == 4 && __GNUC_MINOR__ == 8))
+#pragma GCC diagnostic pop
+#endif
+}
+
+static shared_ptr<op::Constant> fold_constant_convert(shared_ptr<op::Constant> constant,
+                                                      const element::Type& output_element_type)
+{
+    auto& input_element_type = constant->get_output_element_type(0);
+
+    if (input_element_type == output_element_type)
+    {
+        return constant;
+    }
+
+#if !(defined(__GNUC__) && (__GNUC__ == 4 && __GNUC_MINOR__ == 8))
+#pragma GCC diagnostic push
+#pragma GCC diagnostic error "-Wswitch"
+#pragma GCC diagnostic error "-Wswitch-enum"
+#endif
+    switch (input_element_type.get_type_enum())
+    {
+    case element::Type_t::undefined:
+        NGRAPH_CHECK(false, "Encountered 'undefined' element type in fold_constant_convert");
+        break;
+    case element::Type_t::dynamic:
+        NGRAPH_CHECK(false, "Encountered 'dynamic' element type in fold_constant_convert");
+        break;
+    case element::Type_t::boolean:
+        return fold_constant_convert_helper0<char>(constant, output_element_type);
+    case element::Type_t::bf16:
+        return fold_constant_convert_helper0<bfloat16>(constant, output_element_type);
+    case element::Type_t::f16:
+        return fold_constant_convert_helper0<float16>(constant, output_element_type);
+    case element::Type_t::f32:
+        return fold_constant_convert_helper0<float>(constant, output_element_type);
+    case element::Type_t::f64:
+        return fold_constant_convert_helper0<double>(constant, output_element_type);
+    case element::Type_t::i8:
+        return fold_constant_convert_helper0<int8_t>(constant, output_element_type);
+    case element::Type_t::i16:
+        return fold_constant_convert_helper0<int16_t>(constant, output_element_type);
+    case element::Type_t::i32:
+        return fold_constant_convert_helper0<int32_t>(constant, output_element_type);
+    case element::Type_t::i64:
+        return fold_constant_convert_helper0<int64_t>(constant, output_element_type);
+    case element::Type_t::u8:
+        return fold_constant_convert_helper0<uint8_t>(constant, output_element_type);
+    case element::Type_t::u16:
+        return fold_constant_convert_helper0<uint16_t>(constant, output_element_type);
+    case element::Type_t::u32:
+        return fold_constant_convert_helper0<uint32_t>(constant, output_element_type);
+    case element::Type_t::u64:
+        return fold_constant_convert_helper0<uint64_t>(constant, output_element_type);
+    }
+#if !(defined(__GNUC__) && (__GNUC__ == 4 && __GNUC_MINOR__ == 8))
+#pragma GCC diagnostic pop
+#endif
+}
+
+void pass::ConstantFolding::construct_constant_convert()
+{
+    auto constant_label = make_shared<pattern::op::Label>(
+        element::i32, Shape{2, 3, 4}, pattern::has_class<op::Constant>());
+    auto convert_op = make_shared<op::Convert>(constant_label, element::i64);
+
+    auto constant_convert_callback = [constant_label](pattern::Matcher& m) {
+        NGRAPH_DEBUG << "In callback for constant_convert_callback against node = "
+                     << m.get_match_root()->get_name();
+
+        auto pattern_map = m.get_pattern_map();
+
+        auto constant_match = static_pointer_cast<op::Constant>(pattern_map[constant_label]);
+        auto convert_match = static_pointer_cast<op::Convert>(m.get_match_root());
+
+        replace_node(
+            m.get_match_root(),
+            fold_constant_convert(constant_match, convert_match->get_output_element_type(0)));
+        return true;
+    };
+
+    auto convert_matcher =
+        make_shared<pattern::Matcher>(convert_op, "ConstantFolding.ConstantConvert");
+    this->add_matcher(convert_matcher, constant_convert_callback, all_pass_property_off);
+}
+
+// ShapeOf is a bit of an odd duck: it doesn't matter if the input's value is
+// constant, as long as it has static shape.
+void pass::ConstantFolding::construct_constant_shape_of()
+{
+    auto arg_label = make_shared<pattern::op::Label>(element::i32, Shape{2, 3, 4});
+    auto shape_of_op = make_shared<op::ShapeOf>(arg_label);
+
+    auto constant_shape_of_callback = [arg_label](pattern::Matcher& m) {
+        NGRAPH_DEBUG << "In callback for constant_shape_of_callback against node = "
+                     << m.get_match_root()->get_name();
+
+        auto pattern_map = m.get_pattern_map();
+
+        auto arg_match = pattern_map[arg_label];
+
+        if (arg_match->get_output_partial_shape(0).is_static())
+        {
+            auto arg_shape = arg_match->get_output_shape(0);
+            auto replacement =
+                make_shared<op::Constant>(element::i64, Shape{arg_shape.size()}, arg_shape.data());
+
+            replace_node(m.get_match_root(), replacement);
+
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    };
+
+    auto shape_of_matcher =
+        make_shared<pattern::Matcher>(shape_of_op, "ConstantFolding.ConstantShapeOf");
+    this->add_matcher(shape_of_matcher, constant_shape_of_callback, all_pass_property_off);
+}
+
+template <typename T>
+static shared_ptr<op::Constant> fold_constant_reverse_helper(shared_ptr<op::Constant> constant,
+                                                             const AxisSet& reversed_axes)
+{
+    auto out_shape = constant->get_shape();
+    vector<T> out_vec(shape_size(out_shape));
+
+    runtime::reference::reverse<T>(
+        constant->get_vector<T>().data(), out_vec.data(), out_shape, out_shape, reversed_axes);
+
+    return make_shared<op::Constant>(constant->get_output_element_type(0), out_shape, out_vec);
+}
+
+static shared_ptr<op::Constant> fold_constant_reverse(shared_ptr<op::Constant> constant,
+                                                      const AxisSet& reversed_axes)
+{
+    auto& input_element_type = constant->get_output_element_type(0);
+
+#if !(defined(__GNUC__) && (__GNUC__ == 4 && __GNUC_MINOR__ == 8))
+#pragma GCC diagnostic push
+#pragma GCC diagnostic error "-Wswitch"
+#pragma GCC diagnostic error "-Wswitch-enum"
+#endif
+    switch (input_element_type.get_type_enum())
+    {
+    case element::Type_t::undefined:
+        NGRAPH_CHECK(false, "Encountered 'undefined' element type in fold_constant_convert");
+        break;
+    case element::Type_t::dynamic:
+        NGRAPH_CHECK(false, "Encountered 'dynamic' element type in fold_constant_convert");
+        break;
+    case element::Type_t::boolean:
+        return fold_constant_reverse_helper<char>(constant, reversed_axes);
+    case element::Type_t::bf16:
+        return fold_constant_reverse_helper<bfloat16>(constant, reversed_axes);
+    case element::Type_t::f16:
+        return fold_constant_reverse_helper<float16>(constant, reversed_axes);
+    case element::Type_t::f32: return fold_constant_reverse_helper<float>(constant, reversed_axes);
+    case element::Type_t::f64: return fold_constant_reverse_helper<double>(constant, reversed_axes);
+    case element::Type_t::i8: return fold_constant_reverse_helper<int8_t>(constant, reversed_axes);
+    case element::Type_t::i16:
+        return fold_constant_reverse_helper<int16_t>(constant, reversed_axes);
+    case element::Type_t::i32:
+        return fold_constant_reverse_helper<int32_t>(constant, reversed_axes);
+    case element::Type_t::i64:
+        return fold_constant_reverse_helper<int64_t>(constant, reversed_axes);
+    case element::Type_t::u8: return fold_constant_reverse_helper<uint8_t>(constant, reversed_axes);
+    case element::Type_t::u16:
+        return fold_constant_reverse_helper<uint16_t>(constant, reversed_axes);
+    case element::Type_t::u32:
+        return fold_constant_reverse_helper<uint32_t>(constant, reversed_axes);
+    case element::Type_t::u64:
+        return fold_constant_reverse_helper<uint64_t>(constant, reversed_axes);
+    }
+#if !(defined(__GNUC__) && (__GNUC__ == 4 && __GNUC_MINOR__ == 8))
+#pragma GCC diagnostic pop
+#endif
+}
+
+void pass::ConstantFolding::construct_constant_reverse()
+{
+    auto constant_label = make_shared<pattern::op::Label>(
+        element::i32, Shape{2, 3, 4}, pattern::has_class<op::Constant>());
+    auto convert_op = make_shared<op::Reverse>(constant_label, AxisSet{0, 1, 2});
+
+    auto constant_reverse_callback = [constant_label](pattern::Matcher& m) {
+        NGRAPH_DEBUG << "In callback for constant_reverse_callback against node = "
+                     << m.get_match_root()->get_name();
+
+        auto pattern_map = m.get_pattern_map();
+
+        auto constant_match = static_pointer_cast<op::Constant>(pattern_map[constant_label]);
+        auto reverse_match = static_pointer_cast<op::Reverse>(m.get_match_root());
+
+        replace_node(m.get_match_root(),
+                     fold_constant_reverse(constant_match, reverse_match->get_reversed_axes()));
+        return true;
+    };
+
+    auto convert_matcher =
+        make_shared<pattern::Matcher>(convert_op, "ConstantFolding.ConstantReverse");
+    this->add_matcher(convert_matcher, constant_reverse_callback, all_pass_property_off);
+}
+
+template <typename T>
+static shared_ptr<op::Constant> fold_constant_product_helper(shared_ptr<op::Constant> constant,
+                                                             const AxisSet& reduction_axes,
+                                                             const Shape& result_shape)
+{
+    vector<T> out_vec(shape_size(result_shape));
+
+    runtime::reference::product<T>(constant->get_vector<T>().data(),
+                                   out_vec.data(),
+                                   constant->get_output_shape(0),
+                                   result_shape,
+                                   reduction_axes);
+
+    return make_shared<op::Constant>(constant->get_output_element_type(0), result_shape, out_vec);
+}
+
+static shared_ptr<op::Constant> fold_constant_product(shared_ptr<op::Constant> constant,
+                                                      const AxisSet& reduction_axes,
+                                                      const Shape& result_shape)
+{
+    auto& input_element_type = constant->get_output_element_type(0);
+
+#if !(defined(__GNUC__) && (__GNUC__ == 4 && __GNUC_MINOR__ == 8))
+#pragma GCC diagnostic push
+#pragma GCC diagnostic error "-Wswitch"
+#pragma GCC diagnostic error "-Wswitch-enum"
+#endif
+    switch (input_element_type.get_type_enum())
+    {
+    case element::Type_t::undefined:
+        NGRAPH_CHECK(false, "Encountered 'undefined' element type in fold_constant_product");
+        break;
+    case element::Type_t::dynamic:
+        NGRAPH_CHECK(false, "Encountered 'dynamic' element type in fold_constant_product");
+        break;
+    case element::Type_t::boolean:
+        return fold_constant_product_helper<char>(constant, reduction_axes, result_shape);
+    case element::Type_t::bf16:
+        return fold_constant_product_helper<bfloat16>(constant, reduction_axes, result_shape);
+    case element::Type_t::f16:
+        return fold_constant_product_helper<float16>(constant, reduction_axes, result_shape);
+    case element::Type_t::f32:
+        return fold_constant_product_helper<float>(constant, reduction_axes, result_shape);
+    case element::Type_t::f64:
+        return fold_constant_product_helper<double>(constant, reduction_axes, result_shape);
+    case element::Type_t::i8:
+        return fold_constant_product_helper<int8_t>(constant, reduction_axes, result_shape);
+    case element::Type_t::i16:
+        return fold_constant_product_helper<int16_t>(constant, reduction_axes, result_shape);
+    case element::Type_t::i32:
+        return fold_constant_product_helper<int32_t>(constant, reduction_axes, result_shape);
+    case element::Type_t::i64:
+        return fold_constant_product_helper<int64_t>(constant, reduction_axes, result_shape);
+    case element::Type_t::u8:
+        return fold_constant_product_helper<uint8_t>(constant, reduction_axes, result_shape);
+    case element::Type_t::u16:
+        return fold_constant_product_helper<uint16_t>(constant, reduction_axes, result_shape);
+    case element::Type_t::u32:
+        return fold_constant_product_helper<uint32_t>(constant, reduction_axes, result_shape);
+    case element::Type_t::u64:
+        return fold_constant_product_helper<uint64_t>(constant, reduction_axes, result_shape);
+    }
+#if !(defined(__GNUC__) && (__GNUC__ == 4 && __GNUC_MINOR__ == 8))
+#pragma GCC diagnostic pop
+#endif
+}
+
+void pass::ConstantFolding::construct_constant_product()
+{
+    auto constant_label = make_shared<pattern::op::Label>(
+        element::i32, Shape{2, 3, 4}, pattern::has_class<op::Constant>());
+    auto convert_op = make_shared<op::Product>(constant_label, AxisSet{0, 1, 2});
+
+    auto constant_product_callback = [constant_label](pattern::Matcher& m) {
+        NGRAPH_DEBUG << "In callback for constant_product_callback against node = "
+                     << m.get_match_root()->get_name();
+
+        auto pattern_map = m.get_pattern_map();
+
+        auto constant_match = static_pointer_cast<op::Constant>(pattern_map[constant_label]);
+        auto product_match = static_pointer_cast<op::Product>(m.get_match_root());
+
+        replace_node(m.get_match_root(),
+                     fold_constant_product(constant_match,
+                                           product_match->get_reduction_axes(),
+                                           product_match->get_output_shape(0)));
+        return true;
+    };
+
+    auto convert_matcher =
+        make_shared<pattern::Matcher>(convert_op, "ConstantFolding.ConstantProduct");
+    this->add_matcher(convert_matcher, constant_product_callback, all_pass_property_off);
 }

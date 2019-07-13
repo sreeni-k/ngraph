@@ -19,7 +19,7 @@
 #include "ngraph/file_util.hpp"
 #include "ngraph/runtime/backend.hpp"
 #include "ngraph/runtime/backend_manager.hpp"
-#include "ngraph/runtime/cpu/cpu_tensor_view.hpp"
+#include "ngraph/runtime/dynamic/dynamic_backend.hpp"
 #include "ngraph/util.hpp"
 
 using namespace std;
@@ -35,14 +35,31 @@ std::shared_ptr<ngraph::Node> runtime::Backend::get_backend_op(const std::string
     return dummy_node;
 }
 
-unique_ptr<runtime::Backend> runtime::Backend::create(const string& type)
+std::shared_ptr<runtime::Backend> runtime::Backend::create(const string& type,
+                                                           bool must_support_dynamic)
 {
-    return BackendManager::create_backend(type);
+    auto inner_backend = BackendManager::create_backend(type);
+
+    if (!must_support_dynamic || inner_backend->supports_dynamic_tensors())
+    {
+        return inner_backend;
+    }
+    else
+    {
+        return make_shared<runtime::dynamic::DynamicBackend>(inner_backend);
+    }
 }
 
 vector<string> runtime::Backend::get_registered_devices()
 {
     return BackendManager::get_registered_backends();
+}
+
+std::shared_ptr<ngraph::runtime::Tensor>
+    runtime::Backend::create_dynamic_tensor(const ngraph::element::Type& element_type,
+                                            const PartialShape& shape)
+{
+    throw std::invalid_argument("This backend does not support dynamic tensors");
 }
 
 std::shared_ptr<runtime::Executable>
@@ -67,4 +84,22 @@ bool runtime::Backend::is_supported_property(const Property prop) const
 
 void runtime::Backend::remove_compiled_function(std::shared_ptr<Executable> exec)
 {
+}
+
+bool runtime::Backend::is_device_memory(void* ptr)
+{
+    // override this method for each supported backend to determine if the passed pointer is in
+    // device pinned memory or not
+    return false;
+}
+
+std::shared_ptr<runtime::Executable> runtime::Backend::load(istream& input_stream)
+{
+    throw runtime_error("load opertion unimplemented.");
+}
+
+bool runtime::Backend::set_config(const map<string, string>& config, string& error)
+{
+    error = "set_config not supported";
+    return false;
 }

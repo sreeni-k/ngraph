@@ -27,8 +27,10 @@
 
 #include "ngraph/ngraph.hpp"
 #include "ngraph/pass/manager.hpp"
+#if defined(AUTODIFF_BACKEND_CPU)
 #include "ngraph/runtime/cpu/op/batch_mat_mul_transpose.hpp"
 #include "ngraph/runtime/cpu/pass/cpu_mat_fusion.hpp"
+#endif
 #include "ngraph/runtime/reference/avg_pool.hpp"
 #include "util/autodiff/backprop_function.hpp"
 #include "util/autodiff/numeric_compare.hpp"
@@ -853,8 +855,6 @@ NGRAPH_TEST(${BACKEND_NAME}, backwards_dot_tensor3_tensor3)
     EXPECT_TRUE(autodiff_numeric_compare<float>(backend.get(), make_graph, {x0, x1}, .01f, .01f));
 }
 
-#if defined(AUTODIFF_BACKEND_CPU) || defined(AUTODIFF_BACKEND_INTERPRETER)
-// XXX lfeng: remove backend check once all backends support this
 NGRAPH_TEST(${BACKEND_NAME}, backwards_batchmatmul_tensor2_tensor2)
 {
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -873,31 +873,6 @@ NGRAPH_TEST(${BACKEND_NAME}, backwards_batchmatmul_tensor2_tensor2)
 
     EXPECT_TRUE(autodiff_numeric_compare<float>(backend.get(), make_graph, {x0, x1}, .01f, .01f));
 }
-#endif
-
-#if defined(AUTODIFF_BACKEND_CPU) && defined(NGRAPH_JSON_ENABLE)
-NGRAPH_TEST(${BACKEND_NAME}, backwards_batchmatmultranspose_tensor2_tensor2)
-{
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    std::string backend_name = "${BACKEND_NAME}";
-
-    const std::string file_name("mxnet/batch_dot_3.json");
-    auto f = make_function_from_file(file_name);
-
-    test::Uniform<float> rng(-1.0f, 1.0f);
-    std::vector<std::shared_ptr<ngraph::runtime::Tensor>> args;
-    for (shared_ptr<op::Parameter> param : f->get_parameters())
-    {
-        args.push_back(rng.initialize(backend->create_tensor<float>(param->get_shape())));
-    }
-
-    auto g = make_function_from_file(file_name);
-    pass::Manager pass_manager;
-    pass_manager.register_pass<runtime::cpu::pass::CPUBatchFusion>();
-    pass_manager.run_passes(g);
-    EXPECT_TRUE(autodiff_numeric_compare<float>(backend.get(), f, g, args, .01f, .01f));
-}
-#endif
 
 NGRAPH_TEST(${BACKEND_NAME}, backwards_exp)
 {
@@ -1689,14 +1664,13 @@ NGRAPH_TEST(${BACKEND_NAME}, backwards_batch_norm_training)
     const Shape input_shape{10, 4, 5, 5};
     const Shape channel_shape{input_shape.at(1)};
     const double eps = 1e-3;
-    const element::Type& et = element::f32;
-    using T = float;
 
     // Need to keep the output elements for mean and variance from going out of scope
     // and getting freed.
     NodeVector goes;
 
-    auto make_graph = [&input_shape, &channel_shape, &eps, &et, &goes] {
+    auto make_graph = [&input_shape, &channel_shape, &eps, &goes] {
+        const element::Type& et = element::f32;
         auto input = make_shared<op::Parameter>(et, input_shape);
         auto gamma = make_shared<op::Parameter>(et, channel_shape);
         auto beta = make_shared<op::Parameter>(et, channel_shape);
@@ -1713,6 +1687,7 @@ NGRAPH_TEST(${BACKEND_NAME}, backwards_batch_norm_training)
     };
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    using T = float;
     test::Uniform<T> rng(-5.0, 2.0);
     auto input = rng.initialize(backend->create_tensor<T>(input_shape));
     auto gamma = rng.initialize(backend->create_tensor<T>(channel_shape));

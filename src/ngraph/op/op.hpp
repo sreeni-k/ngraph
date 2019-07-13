@@ -18,6 +18,7 @@
 
 #include <string>
 
+#include "ngraph/autodiff/adjoints.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/util/op_annotations.hpp"
 
@@ -40,6 +41,12 @@ namespace ngraph
 
             virtual bool is_op() const override { return true; }
         protected:
+            Op()
+                : Node()
+            {
+            }
+            Op(const NodeVector& arguments);
+            Op(const OutputVector& arguments);
             Op(const std::string& node_type, const NodeVector& arguments);
 
         private:

@@ -692,8 +692,9 @@ bool runtime::cpu::mkldnn_utils::is_mkldnn_padded_layout(const mkldnn::memory::d
 
 bool runtime::cpu::mkldnn_utils::use_mkldnn_kernel(const ngraph::Node* node)
 {
-    if (auto* op_node = dynamic_cast<const ngraph::op::Op*>(node))
+    if (node->is_op())
     {
+        auto* op_node = static_cast<const ngraph::op::Op*>(node);
         auto op_annotations = op_node->get_op_annotations();
         return (op_annotations &&
                 static_pointer_cast<ngraph::runtime::cpu::CPUOpAnnotations>(op_annotations)
@@ -735,7 +736,8 @@ mkldnn::algorithm runtime::cpu::mkldnn_utils::get_deconv_algo()
 
 mkldnn::algorithm runtime::cpu::mkldnn_utils::get_conv_algo()
 {
-#if defined(MKLDNN_VERSION_MAJOR) && defined(MKLDNN_VERSION_MINOR) && defined(MKLDNN_VERSION_PATCH)
+#if defined(NGRAPH_ENABLE_CPU_CONV_AUTO) && defined(MKLDNN_VERSION_MAJOR) &&                       \
+    defined(MKLDNN_VERSION_MINOR) && defined(MKLDNN_VERSION_PATCH)
     auto mkldnn_version = get_mkldnn_version();
     if (mkldnn_version->major >= 0 && mkldnn_version->minor >= 18 && mkldnn_version->patch >= 0)
     {

@@ -32,7 +32,6 @@
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/pattern/matcher.hpp"
-#include "ngraph/runtime/cpu/pass/cpu_fusion.hpp"
 #include "ngraph/serializer.hpp"
 #include "ngraph/util.hpp"
 #include "util/all_close.hpp"
@@ -51,7 +50,7 @@ public:
     virtual std::shared_ptr<Node> copy_with_new_args(const NodeVector& new_args) const override
     {
         auto clone = make_shared<ControlDependencyOp>(new_args, std::set<std::shared_ptr<Node>>{});
-        return clone;
+        return move(clone);
     }
 
     ControlDependencyOp(const NodeVector& args, const std::set<std::shared_ptr<Node>>& deps)
@@ -88,8 +87,7 @@ TEST(control_dependencies, cdep_ops)
         make_shared<ControlDependencyOp>(NodeVector{A}, std::set<std::shared_ptr<Node>>{absn});
 
     auto f = make_shared<Function>(cdop, ParameterVector{A, B});
-    auto nodes = f->get_ordered_ops(true);
-    ASSERT_EQ(nodes.back()->get_argument(0), cdop);
+    test_ordered_ops(f, NodeVector{absn});
 }
 
 TEST(control_dependencies, two_cdep_ops)
@@ -103,8 +101,7 @@ TEST(control_dependencies, two_cdep_ops)
                                                  std::set<std::shared_ptr<Node>>{absn, absn_c});
 
     auto f = make_shared<Function>(cdop, ParameterVector{A, B, C});
-    auto nodes = f->get_ordered_ops(true);
-    ASSERT_EQ(nodes.back()->get_argument(0), cdop);
+    test_ordered_ops(f, NodeVector{absn, absn_c});
 }
 
 TEST(control_dependencies, two_cdep_ops_op_on_top)
@@ -118,8 +115,7 @@ TEST(control_dependencies, two_cdep_ops_op_on_top)
     auto absn_cdop = make_shared<op::Abs>(cdop);
 
     auto f = make_shared<Function>(absn_cdop, ParameterVector{A, B});
-    auto nodes = f->get_ordered_ops(true);
-    ASSERT_EQ(nodes.back()->get_argument(0), absn_cdop);
+    test_ordered_ops(f, NodeVector{absn, absn_b});
 }
 
 TEST(control_dependencies, clone_function_cdop)
@@ -130,8 +126,9 @@ TEST(control_dependencies, clone_function_cdop)
         make_shared<ControlDependencyOp>(NodeVector{A}, std::set<std::shared_ptr<Node>>{absn});
 
     auto f = make_shared<Function>(cdop, ParameterVector{A});
+    test_ordered_ops(f, NodeVector{absn});
     auto clone = ngraph::clone_function(*f.get());
-    auto matcher = std::make_shared<pattern::Matcher>(cdop, nullptr);
+    auto matcher = std::make_shared<pattern::Matcher>(cdop);
     auto cdop_clone = clone->get_results().at(0)->get_argument(0);
     ASSERT_TRUE(matcher->match(cdop_clone));
     auto cloned_deps = cdop_clone->get_control_dependencies();
@@ -152,7 +149,7 @@ TEST(control_dependencies, clone_function_cdop_abs)
 
     auto f = make_shared<Function>(absn_cdop, ParameterVector{A, B});
     auto clone = ngraph::clone_function(*f.get());
-    auto matcher = std::make_shared<pattern::Matcher>(cdop, nullptr);
+    auto matcher = std::make_shared<pattern::Matcher>(cdop);
     auto cdop_clone = clone->get_results().at(0)->get_argument(0)->get_argument(0);
     ASSERT_TRUE(matcher->match(cdop_clone));
     auto cloned_deps = cdop_clone->get_control_dependencies();
@@ -163,7 +160,7 @@ TEST(control_dependencies, clone_function_cdop_abs)
     }
 }
 
-#ifdef NGRAPH_JSON_ENABLE
+#ifndef NGRAPH_JSON_DISABLE
 TEST(control_dependencies, serialize_cdop)
 {
     auto A = make_shared<op::Parameter>(element::f32, Shape{});
@@ -175,7 +172,7 @@ TEST(control_dependencies, serialize_cdop)
     string js = serialize(f, 4);
     shared_ptr<Function> clone = deserialize(js);
 
-    auto matcher = std::make_shared<pattern::Matcher>(cdop, nullptr);
+    auto matcher = std::make_shared<pattern::Matcher>(cdop);
     auto cdop_clone = clone->get_results().at(0)->get_argument(0);
     ASSERT_TRUE(matcher->match(cdop_clone));
     auto cloned_deps = cdop_clone->get_control_dependencies();
@@ -199,7 +196,7 @@ TEST(control_dependencies, serialize_cdop_abs)
 
     string js = serialize(f, 4);
     shared_ptr<Function> clone = deserialize(js);
-    auto matcher = std::make_shared<pattern::Matcher>(cdop, nullptr);
+    auto matcher = std::make_shared<pattern::Matcher>(cdop);
     auto cdop_clone = clone->get_results().at(0)->get_argument(0)->get_argument(0);
     ASSERT_TRUE(matcher->match(cdop_clone));
     auto cloned_deps = cdop_clone->get_control_dependencies();

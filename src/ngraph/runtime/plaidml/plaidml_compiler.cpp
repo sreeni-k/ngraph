@@ -20,12 +20,12 @@
 #include "ngraph/pass/algebraic_simplification.hpp"
 #include "ngraph/pass/core_fusion.hpp"
 #include "ngraph/pass/cse.hpp"
+#include "ngraph/pass/fused_op_decomposition.hpp"
 #include "ngraph/pass/get_output_element_elimination.hpp"
 #include "ngraph/pass/like_replacement.hpp"
 #include "ngraph/pass/liveness.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/nop_elimination.hpp"
-#include "ngraph/pass/prefix_reshape_elimination.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/pass/zero_dim_tensor_elimination.hpp"
 #include "ngraph/runtime/plaidml/plaidml_impl.hpp"
@@ -35,6 +35,7 @@
 #include "ngraph/runtime/plaidml/plaidml_pass_explicit_logicals.hpp"
 #include "ngraph/runtime/plaidml/plaidml_pass_implicit_broadcast.hpp"
 #include "ngraph/runtime/plaidml/plaidml_pass_lower_convolutions.hpp"
+#include "ngraph/runtime/plaidml/plaidml_pass_prefix_reshape_elimination.hpp"
 #include "ngraph/runtime/plaidml/plaidml_pass_replicate_combination.hpp"
 #include "ngraph/runtime/plaidml/plaidml_pass_replicate_elision.hpp"
 #include "ngraph/runtime/plaidml/plaidml_pass_winograd.hpp"
@@ -43,19 +44,19 @@ namespace
 {
     void write_debug(const ngraph::Node& op)
     {
-        PLAIDML_DEBUG << "Node: name=\"" << op.get_name() << "\" desc=\"" << op.description()
-                      << "\"";
+        PLAIDML_DEBUG << "Compiling: " << op;
         for (const auto& op_input : op.get_inputs())
         {
             ngraph::descriptor::Tensor* tensor = op_input.get_output().get_tensor_ptr().get();
             PLAIDML_DEBUG << "Input: descriptor::Tensor " << tensor << " "
-                          << op.get_input_shape(op_input.get_index());
+                          << op.get_input_shape(op_input.get_index())
+                          << op.get_input_element_type(op_input.get_index());
         }
         for (std::size_t out_idx = 0; out_idx < op.get_output_size(); ++out_idx)
         {
             ngraph::descriptor::Tensor* tensor = op.get_output_tensor_ptr(out_idx).get();
             PLAIDML_DEBUG << "Output: descriptor::Tensor " << tensor << " "
-                          << op.get_output_shape(out_idx);
+                          << op.get_output_shape(out_idx) << op.get_output_element_type(out_idx);
         }
         for (auto* t : op.liveness_new_list)
         {
@@ -86,6 +87,7 @@ std::shared_ptr<ngraph::runtime::plaidml::PlaidML_Executable>
     ngraph::pass::Manager pass_manager;
 
     // We apply the same general-purposes passes as the CPU backend.
+    pass_manager.register_pass<ngraph::pass::FusedOpDecomposition>();
     pass_manager.register_pass<ngraph::pass::LikeReplacement>();
     pass_manager.register_pass<ngraph::pass::NopElimination>();
     pass_manager.register_pass<ngraph::pass::ZeroDimTensorElimination>();
@@ -101,7 +103,7 @@ std::shared_ptr<ngraph::runtime::plaidml::PlaidML_Executable>
     pass_manager.register_pass<ngraph::runtime::plaidml::pass::ReplicateElision>();
     pass_manager.register_pass<ngraph::runtime::plaidml::pass::ReplicateCombination>();
     pass_manager.register_pass<ngraph::runtime::plaidml::pass::ImplicitBroadcast>();
-    pass_manager.register_pass<ngraph::pass::PrefixReshapeElimination>();
+    pass_manager.register_pass<ngraph::runtime::plaidml::pass::PrefixReshapeElimination>();
     pass_manager.register_pass<ngraph::runtime::plaidml::pass::LowerConvolutions>();
     if (pass_manager.get_pass_config().get_pass_enable("Winograd"))
     {

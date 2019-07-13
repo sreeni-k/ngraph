@@ -21,31 +21,32 @@
 
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/batch_norm.hpp"
+#include "ngraph/runtime/backend_manager.hpp"
 #include "ngraph/runtime/gpu/gpu_backend.hpp"
 #include "ngraph/runtime/gpu/gpu_external_function.hpp"
 #include "ngraph/runtime/gpu/gpu_internal_function.hpp"
 #include "ngraph/runtime/gpu/gpu_primitive_emitter.hpp"
 #include "ngraph/runtime/gpu/gpu_tensor.hpp"
 #include "ngraph/runtime/gpu/gpu_util.hpp"
-#include "ngraph/runtime/hybrid/hybrid_backend.hpp"
 #include "ngraph/util.hpp"
 
 using namespace ngraph;
 using namespace std;
 
-extern "C" const char* get_ngraph_version_string()
+extern "C" runtime::BackendConstructor* get_backend_constructor_pointer()
 {
-    return NGRAPH_VERSION;
-}
+    class LocalBackendConstructor : public runtime::BackendConstructor
+    {
+    public:
+        std::shared_ptr<runtime::Backend> create(const std::string& config) override
+        {
+            return std::make_shared<runtime::gpu::GPU_Backend>();
+        }
+    };
 
-extern "C" runtime::Backend* new_backend(const char* configuration_string)
-{
-    return new runtime::gpu::GPU_Backend();
-}
-
-extern "C" void delete_backend(runtime::Backend* backend)
-{
-    delete backend;
+    static unique_ptr<runtime::BackendConstructor> s_backend_constructor(
+        new LocalBackendConstructor());
+    return s_backend_constructor.get();
 }
 
 runtime::gpu::GPU_Backend::GPU_Backend()
@@ -217,6 +218,7 @@ bool runtime::gpu::GPU_Backend::is_supported(const Node& op) const
 {
     set<string> unsupported_ops = {"Quantize",
                                    "Dequantize",
+                                   "DynReplaceSlice",
                                    "DynReshape",
                                    "DynSlice",
                                    "ShapeOf",
@@ -230,7 +232,10 @@ bool runtime::gpu::GPU_Backend::is_supported(const Node& op) const
                                    "EmbeddingLookup",
                                    "GenerateMask",
                                    "DynBroadcast",
-                                   "Transpose"};
+                                   "Transpose",
+                                   "Range",
+                                   "Recv",
+                                   "Send"};
 
     set<string> float_only = {"MaxPoolBackprop", "AvgPoolBackprop", "MaxPool", "Dot"};
 

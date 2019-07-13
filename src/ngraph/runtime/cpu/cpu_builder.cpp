@@ -27,6 +27,7 @@
 #include "ngraph/op/abs.hpp"
 #include "ngraph/op/acos.hpp"
 #include "ngraph/op/add.hpp"
+#include "ngraph/op/allreduce.hpp"
 #include "ngraph/op/and.hpp"
 #include "ngraph/op/asin.hpp"
 #include "ngraph/op/atan.hpp"
@@ -37,6 +38,7 @@
 #include "ngraph/op/divide.hpp"
 #include "ngraph/op/equal.hpp"
 #include "ngraph/op/exp.hpp"
+#include "ngraph/op/experimental/compiled_kernel.hpp"
 #include "ngraph/op/floor.hpp"
 #include "ngraph/op/get_output_element.hpp"
 #include "ngraph/op/greater.hpp"
@@ -103,13 +105,11 @@
 #include "ngraph/runtime/cpu/kernel/tanh.hpp"
 #include "ngraph/runtime/cpu/op/convert_layout.hpp"
 #include "ngraph/runtime/cpu/op/halide_op.hpp"
-#include "ngraph/runtime/cpu/op/loop_kernel.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/util.hpp"
 
-#ifdef NGRAPH_DISTRIBUTED_OMPI_ENABLE
-#include <mpi.h>
-#include "ngraph/op/allreduce.hpp"
+#ifdef NGRAPH_MLIR_ENABLE
+#include "contrib/mlir/compiler.hpp"
 #endif
 
 using namespace std;
@@ -136,7 +136,30 @@ namespace ngraph
             template <>
             void Builder::BUILDER_DECL(ngraph::op::Divide)
             {
-                BUILD_BINARY_ELEMWISE_FUNCTOR(runtime::cpu::kernel::divide);
+                auto& functors = external_function->get_functors();
+                const ngraph::op::Divide* divop = static_cast<const ngraph::op::Divide*>(node);
+                std::function<void(void*, void*, void*, size_t, bool, int)> kernel;
+                SELECT_KERNEL(kernel, args[0].get_element_type(), runtime::cpu::kernel::divide);
+                auto element_count = out[0].get_size();
+                auto arg0_buffer_index = external_function->get_buffer_index(args[0].get_name());
+                auto arg1_buffer_index = external_function->get_buffer_index(args[1].get_name());
+                auto out0_buffer_index = external_function->get_buffer_index(out[0].get_name());
+                bool pythondiv = divop->is_pythondiv();
+                auto functor = [&,
+                                kernel,
+                                element_count,
+                                arg0_buffer_index,
+                                arg1_buffer_index,
+                                out0_buffer_index,
+                                pythondiv](CPURuntimeContext* ctx, CPUExecutionContext* ectx) {
+                    kernel(ctx->buffer_data[arg0_buffer_index],
+                           ctx->buffer_data[arg1_buffer_index],
+                           ctx->buffer_data[out0_buffer_index],
+                           element_count,
+                           pythondiv,
+                           ectx->arena);
+                };
+                functors.emplace_back(functor);
             }
 
             template <>
@@ -181,15 +204,19 @@ namespace ngraph
                 auto& functors = external_function->get_functors();
 
                 auto element_count = out[0].get_size();
-                auto& arg0_tensor = external_function->get_tensor_data(args[0].get_name());
-                auto& arg1_tensor = external_function->get_tensor_data(args[1].get_name());
-                auto& out0_tensor = external_function->get_tensor_data(out[0].get_name());
+                auto arg0_buffer_index = external_function->get_buffer_index(args[0].get_name());
+                auto arg1_buffer_index = external_function->get_buffer_index(args[1].get_name());
+                auto out0_buffer_index = external_function->get_buffer_index(out[0].get_name());
 
-                auto functor = [&, element_count](CPURuntimeContext* ctx,
-                                                  CPUExecutionContext* ectx) {
-                    runtime::cpu::kernel::logical_and(
-                        arg0_tensor, arg1_tensor, out0_tensor, element_count, ectx->arena);
-                };
+                auto functor =
+                    [&, element_count, arg0_buffer_index, arg1_buffer_index, out0_buffer_index](
+                        CPURuntimeContext* ctx, CPUExecutionContext* ectx) {
+                        runtime::cpu::kernel::logical_and(ctx->buffer_data[arg0_buffer_index],
+                                                          ctx->buffer_data[arg1_buffer_index],
+                                                          ctx->buffer_data[out0_buffer_index],
+                                                          element_count,
+                                                          ectx->arena);
+                    };
                 functors.emplace_back(functor);
             }
 
@@ -199,15 +226,19 @@ namespace ngraph
                 auto& functors = external_function->get_functors();
 
                 auto element_count = out[0].get_size();
-                auto& arg0_tensor = external_function->get_tensor_data(args[0].get_name());
-                auto& arg1_tensor = external_function->get_tensor_data(args[1].get_name());
-                auto& out0_tensor = external_function->get_tensor_data(out[0].get_name());
+                auto arg0_buffer_index = external_function->get_buffer_index(args[0].get_name());
+                auto arg1_buffer_index = external_function->get_buffer_index(args[1].get_name());
+                auto out0_buffer_index = external_function->get_buffer_index(out[0].get_name());
 
-                auto functor = [&, element_count](CPURuntimeContext* ctx,
-                                                  CPUExecutionContext* ectx) {
-                    runtime::cpu::kernel::logical_or(
-                        arg0_tensor, arg1_tensor, out0_tensor, element_count, ectx->arena);
-                };
+                auto functor =
+                    [&, element_count, arg0_buffer_index, arg1_buffer_index, out0_buffer_index](
+                        CPURuntimeContext* ctx, CPUExecutionContext* ectx) {
+                        runtime::cpu::kernel::logical_or(ctx->buffer_data[arg0_buffer_index],
+                                                         ctx->buffer_data[arg1_buffer_index],
+                                                         ctx->buffer_data[out0_buffer_index],
+                                                         element_count,
+                                                         ectx->arena);
+                    };
                 functors.emplace_back(functor);
             }
 
@@ -347,23 +378,23 @@ namespace ngraph
             {
                 auto& functors = external_function->get_functors();
 
-                vector<void**> dest;
+                vector<size_t> dest_indices;
                 for (auto& result : external_function->get_function()->get_results())
                 {
                     if (result.get() == node)
                     {
-                        dest.push_back(&external_function->get_tensor_data(
+                        dest_indices.push_back(external_function->get_buffer_index(
                             result->get_output_tensor(0).get_name()));
                     }
                 }
-                auto& src =
-                    external_function->get_tensor_data(node->get_output_tensor(0).get_name());
+                auto src_index =
+                    external_function->get_buffer_index(node->get_output_tensor(0).get_name());
                 auto size = node->get_output_tensor(0).size();
-                auto functor = [&, dest, src, size](CPURuntimeContext* ctx,
-                                                    CPUExecutionContext* ectx) {
-                    for (auto p : dest)
+                auto functor = [&, dest_indices, src_index, size](CPURuntimeContext* ctx,
+                                                                  CPUExecutionContext* ectx) {
+                    for (auto p : dest_indices)
                     {
-                        memcpy(*p, src, size);
+                        memcpy(ctx->buffer_data[p], ctx->buffer_data[src_index], size);
                     }
                 };
                 functors.emplace_back(functor);
@@ -390,7 +421,17 @@ namespace ngraph
             template <>
             NodeExecutorTy Builder::BUILDER_CF_DECL(ngraph::op::Divide)
             {
-                BUILD_BINARY_ELEMWISE_CF_FUNCTOR(runtime::cpu::kernel::divide);
+                const ngraph::op::Divide* divop = static_cast<const ngraph::op::Divide*>(node);
+                std::function<void(void*, void*, void*, size_t, bool, int)> kernel;
+                SELECT_KERNEL(
+                    kernel, node->get_input_element_type(0), runtime::cpu::kernel::divide);
+                auto element_count = shape_size(node->get_shape());
+                bool pythondiv = divop->is_pythondiv();
+                auto functor = [&, kernel, element_count, pythondiv](
+                    const std::vector<void*>& inputs, std::vector<void*>& outputs) {
+                    kernel(inputs[0], inputs[1], outputs[0], element_count, pythondiv, 0);
+                };
+                return functor;
             }
 
             template <>
@@ -435,8 +476,8 @@ namespace ngraph
             {
                 static BuildOpMap build_dispatcher{
                     {TI(ngraph::op::Parameter), &runtime::cpu::Builder::nop},
-                    {TI(ngraph::runtime::cpu::op::LoopKernel),
-                     &runtime::cpu::Builder::build<ngraph::runtime::cpu::op::LoopKernel>},
+                    {TI(ngraph::op::CompiledKernel),
+                     &runtime::cpu::Builder::build<ngraph::op::CompiledKernel>},
                     {TI(ngraph::runtime::cpu::op::HalideOp),
                      &runtime::cpu::Builder::build<ngraph::runtime::cpu::op::HalideOp>}};
 

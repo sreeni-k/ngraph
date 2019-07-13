@@ -30,8 +30,9 @@
 #include "ngraph/op/batch_norm.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/dequantize.hpp"
+#include "ngraph/op/experimental/compiled_kernel.hpp"
+#include "ngraph/op/experimental/generate_mask.hpp"
 #include "ngraph/op/experimental/quantized_concat.hpp"
-#include "ngraph/op/experimental/quantized_conv.hpp"
 #include "ngraph/op/experimental/quantized_conv_bias.hpp"
 #include "ngraph/op/fused/conv_fused.hpp"
 #include "ngraph/op/fused/group_conv.hpp"
@@ -40,7 +41,9 @@
 #include "ngraph/op/negative.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/quantize.hpp"
+#include "ngraph/op/quantized_convolution.hpp"
 #include "ngraph/op/relu.hpp"
+#include "ngraph/op/result.hpp"
 #include "ngraph/op/reverse_sequence.hpp"
 #include "ngraph/op/sigmoid.hpp"
 #include "ngraph/op/sum.hpp"
@@ -64,9 +67,9 @@
 #include "ngraph/runtime/cpu/op/conv_relu.hpp"
 #include "ngraph/runtime/cpu/op/convert_layout.hpp"
 #include "ngraph/runtime/cpu/op/deconv.hpp"
+#include "ngraph/runtime/cpu/op/dropout.hpp"
 #include "ngraph/runtime/cpu/op/group_conv_bias.hpp"
 #include "ngraph/runtime/cpu/op/leaky_relu.hpp"
-#include "ngraph/runtime/cpu/op/loop_kernel.hpp"
 #include "ngraph/runtime/cpu/op/lstm.hpp"
 #include "ngraph/runtime/cpu/op/matmul_bias.hpp"
 #include "ngraph/runtime/cpu/op/rnn.hpp"
@@ -74,7 +77,6 @@
 #include "ngraph/runtime/cpu/op/sigmoid_mul.hpp"
 #include "ngraph/runtime/cpu/op/update_slice.hpp"
 #include "ngraph/runtime/cpu/pass/cpu_fusion.hpp"
-#include "ngraph/runtime/cpu/pass/cpu_loop_kernel_fusion.hpp"
 #include "ngraph/runtime/cpu/pass/cpu_mat_fusion.hpp"
 #include "ngraph/runtime/cpu/pass/cpu_post_layout_optimizations.hpp"
 #include "ngraph/runtime/cpu/pass/cpu_rnn_fusion.hpp"
@@ -288,7 +290,7 @@ TEST(cpu_fusion, cpu_fusion_pass_basic)
     auto add = dot + broadcast;
     auto graph = make_shared<op::Abs>(add);
     pass::Manager pass_manager;
-    pass_manager.register_pass<runtime::cpu::pass::CPUFusion>(pass::REGULAR_FUSIONS);
+    pass_manager.register_pass<runtime::cpu::pass::CPUFusion>(pass::FusionType::REGULAR_FUSIONS);
     auto func = make_shared<Function>(graph, ParameterVector{A, B, C});
     pass_manager.run_passes(func);
     ASSERT_NE(std::dynamic_pointer_cast<op::MatmulBias>(graph->get_argument(0)), nullptr);
@@ -309,7 +311,7 @@ TEST(cpu_fusion, commutative_matmul_bias)
     auto add = broadcast + dot;
     auto graph = make_shared<op::Abs>(add);
     pass::Manager pass_manager;
-    pass_manager.register_pass<runtime::cpu::pass::CPUFusion>(pass::REGULAR_FUSIONS);
+    pass_manager.register_pass<runtime::cpu::pass::CPUFusion>(pass::FusionType::REGULAR_FUSIONS);
     auto func = make_shared<Function>(graph, ParameterVector{A, B, C});
     pass_manager.run_passes(func);
     ASSERT_NE(std::dynamic_pointer_cast<op::MatmulBias>(graph->get_argument(0)), nullptr);
@@ -331,7 +333,7 @@ TEST(cpu_fusion, cpu_fusion_pass_matmul_bias)
 
     auto graph = make_shared<op::Abs>(add);
     pass::Manager pass_manager;
-    pass_manager.register_pass<runtime::cpu::pass::CPUFusion>(pass::REGULAR_FUSIONS);
+    pass_manager.register_pass<runtime::cpu::pass::CPUFusion>(pass::FusionType::REGULAR_FUSIONS);
     auto func = make_shared<Function>(graph, ParameterVector{W, x, b});
     pass_manager.run_passes(func);
     auto gmm = graph->get_argument(0);
@@ -352,126 +354,11 @@ TEST(cpu_fusion, cpu_fusion_pass_matmul_no_bias)
     auto graph = make_shared<op::Abs>(re_dot);
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<runtime::cpu::pass::CPUFusion>(pass::REGULAR_FUSIONS);
+    pass_manager.register_pass<runtime::cpu::pass::CPUFusion>(pass::FusionType::REGULAR_FUSIONS);
     auto func = make_shared<Function>(graph, ParameterVector{W, x});
     pass_manager.run_passes(func);
     size_t mmb = count_ops_of_type<op::MatmulBias>(func);
     ASSERT_EQ(mmb, 1);
-}
-
-TEST(cpu_fusion, zero_padded_reshaped_conv)
-{
-    auto X = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2, 1});
-    auto F = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1, 1});
-
-    auto pad_value = op::Constant::create<float>(element::f32, Shape{}, std::vector<float>{0.0f});
-
-    auto pad =
-        make_shared<op::Pad>(X, pad_value, CoordinateDiff{0, 1, 0, 0}, CoordinateDiff{0, 0, 1, 0});
-
-    auto reshape = make_shared<op::Reshape>(pad, AxisVector{0, 3, 1, 2}, Shape{1, 1, 3, 3});
-
-    auto conv = make_shared<op::Convolution>(reshape,
-                                             F,
-                                             Strides{1, 1},
-                                             Strides{1, 1},
-                                             CoordinateDiff{0, 0},
-                                             CoordinateDiff{0, 0},
-                                             Strides{1, 1});
-
-    auto func = make_shared<Function>(conv, ParameterVector{X, F});
-
-    ASSERT_EQ(count_ops_of_type<op::Pad>(func), 1);
-
-    auto backend = runtime::Backend::create("CPU");
-    backend->compile(func);
-
-    ASSERT_EQ(count_ops_of_type<op::Pad>(func), 0);
-}
-
-TEST(cpu_fusion, zero_padded_conv)
-{
-    auto X = make_shared<op::Parameter>(element::f32, Shape{1, 1, 2, 2});
-    auto F = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1, 1});
-
-    auto pad_value = op::Constant::create<float>(element::f32, Shape{}, std::vector<float>{0.0f});
-
-    auto pad =
-        make_shared<op::Pad>(X, pad_value, CoordinateDiff{0, 0, 0, 1}, CoordinateDiff{0, 0, 1, 0});
-
-    auto conv = make_shared<op::Convolution>(pad,
-                                             F,
-                                             Strides{1, 1},
-                                             Strides{1, 1},
-                                             CoordinateDiff{0, 0},
-                                             CoordinateDiff{0, 0},
-                                             Strides{1, 1});
-
-    auto func = make_shared<Function>(conv, ParameterVector{X, F});
-
-    ASSERT_EQ(count_ops_of_type<op::Pad>(func), 1);
-
-    auto backend = runtime::Backend::create("CPU");
-    backend->compile(func);
-
-    ASSERT_EQ(count_ops_of_type<op::Pad>(func), 0);
-}
-
-TEST(cpu_fusion, non_zero_padded_conv)
-{
-    auto X = make_shared<op::Parameter>(element::f32, Shape{1, 1, 2, 2});
-    auto F = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1, 1});
-
-    auto pad_value = op::Constant::create<float>(element::f32, Shape{}, std::vector<float>{1.0f});
-
-    auto pad =
-        make_shared<op::Pad>(X, pad_value, CoordinateDiff{0, 0, 0, 1}, CoordinateDiff{0, 0, 1, 0});
-
-    auto conv = make_shared<op::Convolution>(pad,
-                                             F,
-                                             Strides{1, 1},
-                                             Strides{1, 1},
-                                             CoordinateDiff{0, 0},
-                                             CoordinateDiff{0, 0},
-                                             Strides{1, 1});
-
-    auto func = make_shared<Function>(conv, ParameterVector{X, F});
-
-    ASSERT_EQ(count_ops_of_type<op::Pad>(func), 1);
-
-    auto backend = runtime::Backend::create("CPU");
-    backend->compile(func);
-
-    ASSERT_EQ(count_ops_of_type<op::Pad>(func), 1);
-}
-
-TEST(cpu_fusion, zero_padded_conv_backprop_filters)
-{
-    auto X = make_shared<op::Parameter>(element::f32, Shape{1, 1, 2, 2});
-    auto F = make_shared<op::Parameter>(element::f32, Shape{1, 1, 2, 2});
-
-    auto pad_value = op::Constant::create<float>(element::f32, Shape{}, std::vector<float>{0.0f});
-
-    auto pad =
-        make_shared<op::Pad>(X, pad_value, CoordinateDiff{0, 0, 0, 1}, CoordinateDiff{0, 0, 1, 0});
-
-    auto conv = make_shared<op::ConvolutionBackpropFilters>(pad,
-                                                            Shape{1, 1, 2, 2},
-                                                            F,
-                                                            Strides{1, 1},
-                                                            Strides{1, 1},
-                                                            CoordinateDiff{0, 0},
-                                                            CoordinateDiff{0, 0},
-                                                            Strides{1, 1});
-
-    auto func = make_shared<Function>(conv, ParameterVector{X, F});
-
-    ASSERT_EQ(count_ops_of_type<op::Pad>(func), 1);
-
-    auto backend = runtime::Backend::create("CPU");
-    backend->compile(func);
-
-    ASSERT_EQ(count_ops_of_type<op::Pad>(func), 0);
 }
 
 struct ConvolutionBiasTestData
@@ -656,7 +543,7 @@ TEST(cpu_fusion, conv_bias_bprop)
 
     pass::Manager pass_manager;
     pass_manager.register_pass<runtime::cpu::pass::CPUFusion>();
-    pass_manager.register_pass<pass::VisualizeTree>("conv_bias_bprop_fusion");
+    pass_manager.register_pass<pass::VisualizeTree>("conv_bias_bprop_fusion.png");
     auto f = make_shared<Function>(conv_bias, ParameterVector{data_batch, filters, bias});
 
     ngraph::autodiff::Adjoints adjoints(NodeVector{conv_bias}, NodeVector{delta});
@@ -671,6 +558,136 @@ TEST(cpu_fusion, conv_bias_bprop)
     pass_manager.run_passes(df);
     size_t ccg = count_ops_of_type<op::ConvolutionBiasBackpropFiltersBias>(df);
     ASSERT_EQ(ccg, 1);
+}
+
+static void test_batchnorm_multiply_add_relu(Shape input_shape)
+{
+    auto make_bn_relu_function = [&]() {
+        auto c_axis = input_shape[1];
+        auto input = make_shared<op::Parameter>(element::f32, input_shape);
+        auto mean_shape = Shape{c_axis};
+        auto mean = std::make_shared<op::Parameter>(element::f32, mean_shape);
+        auto var_shape = Shape{c_axis};
+        auto var = std::make_shared<op::Parameter>(element::f32, var_shape);
+        auto gamma_shape = Shape{c_axis};
+        auto gamma = make_shared<op::Parameter>(element::f32, gamma_shape);
+        auto beta_shape = Shape{c_axis};
+        auto beta = make_shared<op::Parameter>(element::f32, beta_shape);
+        double eps = 0.001;
+        auto bn =
+            std::make_shared<ngraph::op::BatchNormInference>(eps, gamma, beta, input, mean, var);
+
+        std::vector<size_t> vec{0};
+        for (auto i = 2; i < input_shape.size(); i++)
+        {
+            vec.push_back(i);
+        }
+        auto broadcast1_input = std::make_shared<op::Parameter>(element::f32, gamma_shape);
+        auto broadcast1 =
+            std::make_shared<ngraph::op::Broadcast>(broadcast1_input, input_shape, AxisSet(vec));
+        auto multiply = std::make_shared<ngraph::op::Multiply>(bn, broadcast1);
+
+        auto broadcast2_input = std::make_shared<op::Parameter>(element::f32, gamma_shape);
+        auto broadcast2 =
+            std::make_shared<ngraph::op::Broadcast>(broadcast2_input, input_shape, AxisSet(vec));
+
+        auto add = std::make_shared<ngraph::op::Add>(multiply, broadcast2);
+        auto relu = std::make_shared<ngraph::op::Relu>(add);
+        auto f = make_shared<Function>(
+            relu,
+            ParameterVector{gamma, beta, input, mean, var, broadcast1_input, broadcast2_input});
+        return f;
+    };
+
+    auto cpu_f = make_bn_relu_function();
+    auto int_f = make_bn_relu_function();
+    test::Uniform<float> rng(1.0f, 10.0f);
+    vector<vector<float>> args;
+
+    for (shared_ptr<op::Parameter> param : int_f->get_parameters())
+    {
+        vector<float> tensor_val(shape_size(param->get_shape()));
+        rng.initialize(tensor_val);
+        args.push_back(tensor_val);
+    }
+    auto int_results = execute(int_f, args, "INTERPRETER");
+    auto cpu_results = execute(cpu_f, args, "CPU");
+    for (size_t i = 0; i < cpu_results.size(); i++)
+    {
+        EXPECT_TRUE(test::all_close(cpu_results.at(i), int_results.at(i), 1.0e-4f, 1.0e-4f));
+    }
+
+    size_t bn_relu = count_ops_of_type<op::BatchNormInferenceRelu>(cpu_f);
+    ASSERT_EQ(bn_relu, 1);
+}
+
+TEST(cpu_fusion, batchnorm_multiply_add_relu)
+{
+    test_batchnorm_multiply_add_relu(Shape{1, 3, 2, 2});
+    test_batchnorm_multiply_add_relu(Shape{1, 2, 2, 2, 2});
+    test_batchnorm_multiply_add_relu(Shape{2, 2, 2, 4, 4});
+}
+
+TEST(cpu_fusion, batchnorm_multiply_add_relu_no_fusion)
+{
+    auto input_shape = Shape{3, 3, 2, 2};
+    auto make_bn_relu_function = [&]() {
+        auto c_axis = input_shape[1];
+        auto input = make_shared<op::Parameter>(element::f32, input_shape);
+        auto mean_shape = Shape{c_axis};
+        auto mean = std::make_shared<op::Parameter>(element::f32, mean_shape);
+        auto var_shape = Shape{c_axis};
+        auto var = std::make_shared<op::Parameter>(element::f32, var_shape);
+        auto gamma_shape = Shape{c_axis};
+        auto gamma = make_shared<op::Parameter>(element::f32, gamma_shape);
+        auto beta_shape = Shape{c_axis};
+        auto beta = make_shared<op::Parameter>(element::f32, beta_shape);
+        double eps = 0.001;
+        auto bn =
+            std::make_shared<ngraph::op::BatchNormInference>(eps, gamma, beta, input, mean, var);
+
+        std::vector<size_t> vec;
+        for (auto i = 1; i < input_shape.size(); i++)
+        {
+            vec.push_back(i);
+        }
+        auto broadcast1_input = std::make_shared<op::Parameter>(element::f32, Shape{3});
+        auto broadcast1 =
+            std::make_shared<ngraph::op::Broadcast>(broadcast1_input, input_shape, AxisSet(vec));
+        auto multiply = std::make_shared<ngraph::op::Multiply>(bn, broadcast1);
+
+        auto broadcast2_input = std::make_shared<op::Parameter>(element::f32, Shape{3});
+        auto broadcast2 =
+            std::make_shared<ngraph::op::Broadcast>(broadcast2_input, input_shape, AxisSet(vec));
+
+        auto add = std::make_shared<ngraph::op::Add>(multiply, broadcast2);
+        auto relu = std::make_shared<ngraph::op::Relu>(add);
+        auto f = make_shared<Function>(
+            relu,
+            ParameterVector{gamma, beta, input, mean, var, broadcast1_input, broadcast2_input});
+        return f;
+    };
+
+    auto cpu_f = make_bn_relu_function();
+    auto int_f = make_bn_relu_function();
+    test::Uniform<float> rng(1.0f, 10.0f);
+    vector<vector<float>> args;
+
+    for (shared_ptr<op::Parameter> param : int_f->get_parameters())
+    {
+        vector<float> tensor_val(shape_size(param->get_shape()));
+        rng.initialize(tensor_val);
+        args.push_back(tensor_val);
+    }
+    auto int_results = execute(int_f, args, "INTERPRETER");
+    auto cpu_results = execute(cpu_f, args, "CPU");
+    for (size_t i = 0; i < cpu_results.size(); i++)
+    {
+        EXPECT_TRUE(test::all_close(cpu_results.at(i), int_results.at(i), 1.0e-4f, 1.0e-4f));
+    }
+
+    size_t bn_relu = count_ops_of_type<op::BatchNormInferenceRelu>(cpu_f);
+    ASSERT_EQ(bn_relu, 0);
 }
 
 TEST(cpu_fusion, batchnorm_fprop_relu_b1c2h2w2)
@@ -810,7 +827,7 @@ TEST(cpu_fusion, fuse_conv_relu)
     auto func = make_shared<Function>(abs_node, ParameterVector{A, weights});
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<runtime::cpu::pass::CPUFusion>(pass::REGULAR_FUSIONS);
+    pass_manager.register_pass<runtime::cpu::pass::CPUFusion>(pass::FusionType::REGULAR_FUSIONS);
     pass_manager.run_passes(func);
     size_t cb = count_ops_of_type<op::ConvolutionRelu>(func);
     ASSERT_GT(cb, 0);
@@ -1325,7 +1342,8 @@ std::vector<shared_ptr<runtime::Tensor>> rnn_matrix_fusion_eval(const size_t tim
     {
         pass::Manager pass_manager;
         pass_manager.register_pass<runtime::cpu::pass::CPURnnMatFusion>();
-        pass_manager.register_pass<runtime::cpu::pass::CPUFusion>(pass::REGULAR_FUSIONS);
+        pass_manager.register_pass<runtime::cpu::pass::CPUFusion>(
+            pass::FusionType::REGULAR_FUSIONS);
         pass_manager.run_passes(func);
         // check all of our dot/add are converted to a single MatmulBias op.
         size_t count = count_ops_of_type<op::MatmulBias>(func);
@@ -1527,15 +1545,15 @@ TEST(cpu_fusion, backwards_maxpool_with_indices_n4_c1_hw4_2x2_max)
 
 #if defined(NGRAPH_HALIDE)
 
-TEST(cpu_fusion, loop_kernel_one_input_one_output_halide)
+TEST(cpu_fusion, compiled_kernel_one_input_one_output_halide)
 {
     Shape shapeA{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shapeA);
     auto relu_a = make_shared<op::Relu>(A);
     auto relu_relu_a = make_shared<op::Relu>(relu_a);
-    auto lk = make_shared<runtime::cpu::op::LoopKernel>(
+    auto ck = make_shared<op::CompiledKernel>(
         NodeVector{relu_a, relu_relu_a}, NodeVector{relu_relu_a}, NodeVector{A});
-    auto f = make_shared<Function>(NodeVector{lk}, ParameterVector{A});
+    auto f = make_shared<Function>(NodeVector{ck}, ParameterVector{A});
 
     auto backend = runtime::Backend::create("CPU");
     shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, shapeA);
@@ -1551,7 +1569,7 @@ TEST(cpu_fusion, loop_kernel_one_input_one_output_halide)
     EXPECT_TRUE(test::all_close(read_vector<float>(result), expected));
 }
 
-TEST(cpu_fusion, loop_kernel_two_input_two_output_halide)
+TEST(cpu_fusion, compiled_kernel_two_input_two_output_halide)
 {
     Shape shapeA{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shapeA);
@@ -1559,11 +1577,11 @@ TEST(cpu_fusion, loop_kernel_two_input_two_output_halide)
     auto relu_a = make_shared<op::Relu>(A);
     auto add_ab = make_shared<op::Add>(relu_a, B);
 
-    auto lk = make_shared<runtime::cpu::op::LoopKernel>(
+    auto ck = make_shared<op::CompiledKernel>(
         NodeVector{relu_a, add_ab}, NodeVector{relu_a, add_ab}, NodeVector{A, B});
 
-    auto goe1 = make_shared<op::GetOutputElement>(lk, 0);
-    auto goe2 = make_shared<op::GetOutputElement>(lk, 1);
+    auto goe1 = make_shared<op::GetOutputElement>(ck, 0);
+    auto goe2 = make_shared<op::GetOutputElement>(ck, 1);
     auto f = make_shared<Function>(NodeVector{goe1, goe2}, ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("CPU");
@@ -1585,7 +1603,7 @@ TEST(cpu_fusion, loop_kernel_two_input_two_output_halide)
     EXPECT_TRUE(test::all_close(read_vector<float>(result_relu), expected_relu));
 }
 
-TEST(cpu_fusion, loop_kernel_embedded_graph_halide)
+TEST(cpu_fusion, compiled_kernel_embedded_graph_halide)
 {
     Shape shapeA{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shapeA);
@@ -1593,9 +1611,9 @@ TEST(cpu_fusion, loop_kernel_embedded_graph_halide)
     auto neg_a = make_shared<op::Negative>(A);
     auto neg_b = make_shared<op::Negative>(B);
     auto add = neg_a + neg_b;
-    auto lk = make_shared<runtime::cpu::op::LoopKernel>(
-        NodeVector{add}, NodeVector{add}, NodeVector{neg_a, neg_b});
-    auto f = make_shared<Function>(NodeVector{lk}, ParameterVector{A, B});
+    auto ck =
+        make_shared<op::CompiledKernel>(NodeVector{add}, NodeVector{add}, NodeVector{neg_a, neg_b});
+    auto f = make_shared<Function>(NodeVector{ck}, ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("CPU");
     shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, shapeA);
@@ -1612,15 +1630,14 @@ TEST(cpu_fusion, loop_kernel_embedded_graph_halide)
     EXPECT_TRUE(test::all_close_f(read_vector<float>(result), expected, MIN_FLOAT_TOLERANCE_BITS));
 }
 
-TEST(cpu_fusion, loop_kernel_two_inputs_one_output_halide)
+TEST(cpu_fusion, compiled_kernel_two_inputs_one_output_halide)
 {
     Shape shapeA{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shapeA);
     auto B = make_shared<op::Parameter>(element::f32, shapeA);
     auto add = A + B;
-    auto lk = make_shared<runtime::cpu::op::LoopKernel>(
-        NodeVector{add}, NodeVector{add}, NodeVector{A, B});
-    auto f = make_shared<Function>(NodeVector{lk}, ParameterVector{A, B});
+    auto ck = make_shared<op::CompiledKernel>(NodeVector{add}, NodeVector{add}, NodeVector{A, B});
+    auto f = make_shared<Function>(NodeVector{ck}, ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("CPU");
     shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, shapeA);
@@ -1639,7 +1656,7 @@ TEST(cpu_fusion, loop_kernel_two_inputs_one_output_halide)
     EXPECT_TRUE(test::all_close_f(read_vector<float>(result), expected, MIN_FLOAT_TOLERANCE_BITS));
 }
 
-TEST(cpu_fusion, loop_kernel_multiple_outputs_halide)
+TEST(cpu_fusion, compiled_kernel_multiple_outputs_halide)
 {
     Shape shapeA{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shapeA);
@@ -1656,13 +1673,13 @@ TEST(cpu_fusion, loop_kernel_multiple_outputs_halide)
     auto add_aab = add_ab_abs + A;
     auto add_cdd = add_cd_abs + D;
 
-    auto lk = make_shared<runtime::cpu::op::LoopKernel>(
+    auto ck = make_shared<op::CompiledKernel>(
         NodeVector{neg_a, neg_b, add_ab, add_cd, add_cd_abs, add_ab_abs, add_aab, add_cdd},
         NodeVector{add_aab, add_cdd, neg_b},
         NodeVector{A, B, C, D});
-    auto add_aab_goe = std::make_shared<op::GetOutputElement>(lk, 0);
-    auto add_cdd_goe = std::make_shared<op::GetOutputElement>(lk, 1);
-    auto neg_b_goe = std::make_shared<op::GetOutputElement>(lk, 2);
+    auto add_aab_goe = std::make_shared<op::GetOutputElement>(ck, 0);
+    auto add_cdd_goe = std::make_shared<op::GetOutputElement>(ck, 1);
+    auto neg_b_goe = std::make_shared<op::GetOutputElement>(ck, 2);
 
     auto f = make_shared<Function>(NodeVector{add_aab_goe, add_cdd_goe, neg_b_goe},
                                    ParameterVector{A, B, C, D});
@@ -1697,7 +1714,7 @@ TEST(cpu_fusion, loop_kernel_multiple_outputs_halide)
     EXPECT_TRUE(test::all_close_f(read_vector<float>(r3), expected3, MIN_FLOAT_TOLERANCE_BITS));
 }
 
-TEST(cpu_fusion, loop_kernel_copy_with_new_args)
+TEST(cpu_fusion, compiled_kernel_copy_with_new_args)
 {
     Shape shapeA{2, 2};
     auto A = make_shared<op::Parameter>(element::i32, shapeA);
@@ -1714,13 +1731,13 @@ TEST(cpu_fusion, loop_kernel_copy_with_new_args)
     auto add_aab = add_ab_abs + A;
     auto add_cdd = add_cd_abs + D;
 
-    auto lk = make_shared<runtime::cpu::op::LoopKernel>(
+    auto ck = make_shared<op::CompiledKernel>(
         NodeVector{neg_a, neg_b, add_ab, add_cd, add_cd_abs, add_ab_abs, add_aab, add_cdd},
         NodeVector{add_aab, add_cdd, neg_b},
         NodeVector{A, B, C, D});
-    auto add_aab_goe = std::make_shared<op::GetOutputElement>(lk, 0);
-    auto add_cdd_goe = std::make_shared<op::GetOutputElement>(lk, 1);
-    auto neg_b_goe = std::make_shared<op::GetOutputElement>(lk, 2);
+    auto add_aab_goe = std::make_shared<op::GetOutputElement>(ck, 0);
+    auto add_cdd_goe = std::make_shared<op::GetOutputElement>(ck, 1);
+    auto neg_b_goe = std::make_shared<op::GetOutputElement>(ck, 2);
 
     auto f = make_shared<Function>(NodeVector{add_aab_goe, add_cdd_goe, neg_b_goe},
                                    ParameterVector{A, B, C, D});
@@ -2281,7 +2298,7 @@ TEST(cpu_fusion, rnn_fprop_1_lstm_cell)
 
 #if 0
 
-TEST(cpu_fusion, loop_kernel_fusion_multiple_groups_pruned)
+TEST(cpu_fusion, compiled_kernel_fusion_multiple_groups_pruned)
 {
     auto make_function = []() -> std::shared_ptr<Function> {
         Shape shape{};
@@ -2306,15 +2323,15 @@ TEST(cpu_fusion, loop_kernel_fusion_multiple_groups_pruned)
     };
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<runtime::cpu::pass::CPULoopKernelFusion>(3);
+    pass_manager.register_pass<runtime::cpu::pass::CPUCompiledKernelFusion>(3);
     auto cpu_f = make_function();
     auto int_f = make_function();
     pass_manager.run_passes(cpu_f);
     test::Uniform<float> rng(-100.0f, 100.0f);
     vector<vector<float>> args;
 
-    size_t lkn = count_ops_of_type<runtime::cpu::op::LoopKernel>(cpu_f);
-    ASSERT_GT(lkn, 0);
+    size_t ckn = count_ops_of_type<op::CompiledKernel>(cpu_f);
+    ASSERT_GT(ckn, 0);
 
     for (shared_ptr<op::Parameter> param : cpu_f->get_parameters())
     {
@@ -2330,7 +2347,7 @@ TEST(cpu_fusion, loop_kernel_fusion_multiple_groups_pruned)
     }
 }
 
-TEST(cpu_fusion, loop_kernel_fusion_bounded_relu)
+TEST(cpu_fusion, compiled_kernel_fusion_bounded_relu)
 {
     auto make_function = []() -> std::shared_ptr<Function> {
         Shape shape{};
@@ -2349,7 +2366,7 @@ TEST(cpu_fusion, loop_kernel_fusion_bounded_relu)
 
     pass::Manager pass_manager;
     pass_manager.register_pass<pass::VisualizeTree>("before_relu_fusion.png");
-    pass_manager.register_pass<runtime::cpu::pass::CPULoopKernelFusion>(3);
+    pass_manager.register_pass<runtime::cpu::pass::CPUCompiledKernelFusion>(3);
     pass_manager.register_pass<pass::VisualizeTree>("after_relu_fusion.png");
     auto cpu_f = make_function();
     auto int_f = make_function();
@@ -2357,8 +2374,8 @@ TEST(cpu_fusion, loop_kernel_fusion_bounded_relu)
     test::Uniform<float> rng(-100.0f, 100.0f);
     vector<vector<float>> args;
 
-    size_t lkn = count_ops_of_type<runtime::cpu::op::LoopKernel>(cpu_f);
-    ASSERT_GT(lkn, 0);
+    size_t ckn = count_ops_of_type<op::CompiledKernel>(cpu_f);
+    ASSERT_GT(ckn, 0);
 
     for (shared_ptr<op::Parameter> param : cpu_f->get_parameters())
     {
@@ -2374,7 +2391,7 @@ TEST(cpu_fusion, loop_kernel_fusion_bounded_relu)
     }
 }
 
-TEST(cpu_fusion, loop_kernel_fusion_multiple_groups)
+TEST(cpu_fusion, compiled_kernel_fusion_multiple_groups)
 {
     auto make_function = []() -> std::shared_ptr<Function> {
         Shape shape{};
@@ -2399,15 +2416,15 @@ TEST(cpu_fusion, loop_kernel_fusion_multiple_groups)
     };
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<runtime::cpu::pass::CPULoopKernelFusion>(2);
+    pass_manager.register_pass<runtime::cpu::pass::CPUCompiledKernelFusion>(2);
     auto cpu_f = make_function();
     auto int_f = make_function();
     pass_manager.run_passes(cpu_f);
     test::Uniform<float> rng(-100.0f, 100.0f);
     vector<vector<float>> args;
 
-    size_t lkn = count_ops_of_type<runtime::cpu::op::LoopKernel>(cpu_f);
-    ASSERT_GT(lkn, 0);
+    size_t ckn = count_ops_of_type<op::CompiledKernel>(cpu_f);
+    ASSERT_GT(ckn, 0);
 
     for (shared_ptr<op::Parameter> param : cpu_f->get_parameters())
     {
@@ -2423,7 +2440,7 @@ TEST(cpu_fusion, loop_kernel_fusion_multiple_groups)
     }
 }
 
-TEST(cpu_fusion, loop_kernel_fusion_one_group)
+TEST(cpu_fusion, compiled_kernel_fusion_one_group)
 {
     auto make_function = []() -> std::shared_ptr<Function> {
         Shape shape{};
@@ -2449,15 +2466,15 @@ TEST(cpu_fusion, loop_kernel_fusion_one_group)
     };
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<runtime::cpu::pass::CPULoopKernelFusion>(2);
+    pass_manager.register_pass<runtime::cpu::pass::CPUCompiledKernelFusion>(2);
     auto cpu_f = make_function();
     auto int_f = make_function();
     pass_manager.run_passes(cpu_f);
     test::Uniform<float> rng(-100.0f, 100.0f);
     vector<vector<float>> args;
 
-    size_t lkn = count_ops_of_type<runtime::cpu::op::LoopKernel>(cpu_f);
-    ASSERT_GT(lkn, 0);
+    size_t ckn = count_ops_of_type<op::CompiledKernel>(cpu_f);
+    ASSERT_GT(ckn, 0);
 
     for (shared_ptr<op::Parameter> param : cpu_f->get_parameters())
     {
@@ -2923,6 +2940,79 @@ TEST(cpu_fusion, fuse_bounded_relu_inter_vs_cpu)
     check_bounded_relu(Shape{4, 3, 2}, 2.0f);
 }
 
+TEST(cpu_fusion, fuse_dropout)
+{
+    auto make_function = [](Shape input_shape,
+                            const uint32_t seed_val,
+                            double one_minus_prob,
+                            bool fuse,
+                            bool use_seed) {
+        auto input = std::make_shared<op::Parameter>(element::f32, input_shape);
+        auto value = op::Constant::create(element::f32, input_shape, {one_minus_prob});
+        auto const1 = op::Constant::create(input->get_element_type(), Shape{}, {1});
+
+        auto gen_mask = std::make_shared<op::GenerateMask>(const1,
+                                                           input->get_shape(),
+                                                           input->get_element_type(),
+                                                           seed_val,
+                                                           one_minus_prob,
+                                                           use_seed);
+
+        auto mult = std::make_shared<op::Multiply>(gen_mask, input);
+
+        auto goe = std::make_shared<op::GetOutputElement>(mult, 0);
+
+        auto pdivide = fuse ? std::make_shared<op::Divide>(mult, value)
+                            : std::make_shared<op::Divide>(goe, value);
+
+        auto f = make_shared<Function>(NodeVector{pdivide, gen_mask}, ParameterVector{input});
+
+        return f;
+
+    };
+
+    uint32_t seed = rand();
+    auto fuse_func = make_function(Shape{2, 2, 256, 256}, seed, 0.9, true, true);
+    auto fuse_func2 = make_function(Shape{2, 2, 256, 256}, seed, 0.9, true, true);
+    auto nofuse_func = make_function(Shape{2, 2, 256, 256}, 1, 0.9, false, false);
+    {
+        pass::Manager pass_manager;
+        pass_manager.register_pass<runtime::cpu::pass::CPUFusion>();
+        pass_manager.run_passes(fuse_func);
+        pass_manager.run_passes(nofuse_func);
+        ASSERT_EQ(count_ops_of_type<op::Dropout>(fuse_func), 1);
+        ASSERT_EQ(count_ops_of_type<op::GenerateMask>(fuse_func), 0);
+        ASSERT_EQ(count_ops_of_type<op::Dropout>(nofuse_func), 0);
+    }
+
+    auto fuse_func3 = make_function(Shape{2, 2, 256, 256}, seed, 0.9, true, false);
+    auto fuse_func4 = make_function(Shape{2, 2, 256, 256}, seed, 0.9, true, false);
+    {
+        test::Uniform<float> rng(1.0f, 100.0f);
+        vector<vector<float>> args;
+        for (shared_ptr<op::Parameter> param : fuse_func->get_parameters())
+        {
+            auto name = param->get_name();
+            vector<float> tensor_val(shape_size(param->get_shape()));
+            rng.initialize(tensor_val);
+            args.push_back(tensor_val);
+        }
+
+        auto fuse_results = execute(fuse_func, args, "CPU");
+        auto fuse_results2 = execute(fuse_func2, args, "CPU");
+        EXPECT_TRUE(test::all_close(fuse_results.at(0), fuse_results2.at(0)));
+        EXPECT_TRUE(test::all_close(fuse_results.at(1), fuse_results2.at(1)));
+
+        auto fuse_results3 = execute(fuse_func3, args, "CPU");
+        auto fuse_results4 = execute(fuse_func4, args, "CPU");
+        EXPECT_FALSE(test::all_close(fuse_results3.at(0), fuse_results4.at(0)));
+        EXPECT_FALSE(test::all_close(fuse_results3.at(1), fuse_results4.at(1)));
+
+        // Note: Since the RNG used in Dropout kernel is different than RNG used in GenerateMask
+        // kernel, we can't compare fuse_results and nofuse_results
+    }
+}
+
 TEST(cpu_fusion, fuse_leaky_relu)
 {
     auto make_function = [](Shape input_shape, vector<float> alpha_val) {
@@ -2941,8 +3031,8 @@ TEST(cpu_fusion, fuse_leaky_relu)
     pass_manager.register_pass<runtime::cpu::pass::CPUFusion>();
     pass_manager.run_passes(no_fuse1);
     pass_manager.run_passes(no_fuse2);
-    EXPECT_EQ(0, count_ops_of_type<op::LeakyRelu>(no_fuse1));
-    EXPECT_EQ(0, count_ops_of_type<op::LeakyRelu>(no_fuse2));
+    EXPECT_EQ(0, count_ops_of_type<op::CPULeakyRelu>(no_fuse1));
+    EXPECT_EQ(0, count_ops_of_type<op::CPULeakyRelu>(no_fuse2));
 
     // non-mkldnn kernel
     auto cpu_f1 = make_function(Shape{1, 2, 3}, std::vector<float>(6, 0.1f));
@@ -2954,11 +3044,11 @@ TEST(cpu_fusion, fuse_leaky_relu)
     std::vector<float> expected_result{-0.1f, -0.2f, 0.0f, 1.0f, 2.0f, 3.0f};
 
     auto cpu1_results = execute(cpu_f1, args, "CPU");
-    EXPECT_EQ(1, count_ops_of_type<op::LeakyRelu>(cpu_f1));
+    EXPECT_EQ(1, count_ops_of_type<op::CPULeakyRelu>(cpu_f1));
     EXPECT_TRUE(test::all_close(cpu1_results.at(0), expected_result));
 
     auto cpu2_results = execute(cpu_f2, args, "CPU");
-    EXPECT_EQ(1, count_ops_of_type<op::LeakyRelu>(cpu_f2));
+    EXPECT_EQ(1, count_ops_of_type<op::CPULeakyRelu>(cpu_f2));
     EXPECT_TRUE(test::all_close(cpu2_results.at(0), expected_result));
 }
 
@@ -3206,7 +3296,7 @@ static std::shared_ptr<Function>
         auto dot = std::make_shared<op::Dot>(data_param_reshape, W_reshape);
         auto bias_broadcast = make_shared<op::Broadcast>(bias, dot->get_shape(), AxisSet{0});
         auto add_bias = std::make_shared<op::Add>(dot, bias_broadcast);
-        return add_bias;
+        return move(add_bias);
 
     };
 
@@ -3283,7 +3373,6 @@ TEST(cpu_quant_fusion, qconv_relu)
             input, input_scale, uint8_zero, element::u8, AxisSet{}, round_mode);
         auto q_weights = std::make_shared<op::Quantize>(
             weights, weights_scale, int8_zero, element::i8, AxisSet{}, round_mode);
-        auto requant_scale = (input_scale * weights_scale) / output_scale;
         auto conv = std::make_shared<op::QuantizedConvolution>(q_input,
                                                                q_weights,
                                                                Strides{1, 1},
@@ -3291,7 +3380,16 @@ TEST(cpu_quant_fusion, qconv_relu)
                                                                CoordinateDiff{0, 0},
                                                                CoordinateDiff{0, 0},
                                                                Strides{1, 1},
-                                                               requant_scale);
+                                                               input_scale,
+                                                               uint8_zero,
+                                                               weights_scale,
+                                                               int8_zero,
+                                                               output_scale,
+                                                               int8_zero,
+                                                               element::i8,
+                                                               AxisSet{},
+                                                               AxisSet{},
+                                                               AxisSet{});
         auto dq = std::make_shared<op::Dequantize>(
             conv, output_scale, int8_zero, element::f32, AxisSet{});
         auto relu = std::make_shared<op::Relu>(dq);
@@ -3721,7 +3819,121 @@ TEST(cpu_quant_fusion, qconvba)
     EXPECT_TRUE(test::all_close(cpu1_results.at(0), cpu2_results.at(0)));
 }
 
-#ifdef NGRAPH_JSON_ENABLE
+TEST(cpu_quant_fusion, qconvba_q)
+{
+    auto make_function = []() {
+        Shape shape_input{1, 2, 2, 2};
+        Shape shape_weights{1, 2, 1, 1};
+        Shape shape_summand{1, 1, 2, 2};
+        auto input_l = std::make_shared<op::Parameter>(element::f32, shape_input);
+        auto weights_l = std::make_shared<op::Parameter>(element::f32, shape_weights);
+        auto bias_l = std::make_shared<op::Parameter>(element::f32, Shape{shape_weights[0]});
+        auto input_r = std::make_shared<op::Parameter>(element::f32, shape_input);
+        auto weights_r = std::make_shared<op::Parameter>(element::f32, shape_weights);
+        auto bias_r = std::make_shared<op::Parameter>(element::f32, Shape{shape_weights[0]});
+
+        auto input_scale_l = op::Constant::create(element::f32, Shape{}, {2.0f});
+        auto weights_scale_l = op::Constant::create(element::f32, Shape{}, {2.0f});
+        auto output_scale_l = op::Constant::create(element::f32, Shape{}, {4.0f});
+        auto input_scale_r = op::Constant::create(element::f32, Shape{}, {5.0f});
+        auto weights_scale_r = op::Constant::create(element::f32, Shape{}, {5.0f});
+        auto output_scale_r = op::Constant::create(element::f32, Shape{}, {20.0f});
+
+        auto int8_zero = op::Constant::create(element::i8, Shape{}, {0});
+        auto int32_zero = op::Constant::create(element::i32, Shape{}, {0});
+        auto uint8_zero = op::Constant::create(element::u8, Shape{}, {0});
+
+        op::Quantize::RoundMode round_mode = op::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN;
+        auto q_input_l = std::make_shared<op::Quantize>(
+            input_l, input_scale_l, uint8_zero, element::u8, AxisSet{}, round_mode);
+        auto q_weights_l = std::make_shared<op::Quantize>(
+            weights_l, weights_scale_l, int8_zero, element::i8, AxisSet{}, round_mode);
+        auto q_bias_l = std::make_shared<op::Quantize>(bias_l,
+                                                       input_scale_l * weights_scale_l,
+                                                       int32_zero,
+                                                       element::i32,
+                                                       AxisSet{},
+                                                       round_mode);
+        auto q_input_r = std::make_shared<op::Quantize>(
+            input_r, input_scale_r, uint8_zero, element::u8, AxisSet{}, round_mode);
+        auto q_weights_r = std::make_shared<op::Quantize>(
+            weights_r, weights_scale_r, int8_zero, element::i8, AxisSet{}, round_mode);
+        auto q_bias_r = std::make_shared<op::Quantize>(bias_r,
+                                                       input_scale_r * weights_scale_r,
+                                                       int32_zero,
+                                                       element::i32,
+                                                       AxisSet{},
+                                                       round_mode);
+
+        // Left Graph
+        auto requant_scale_l = (input_scale_l * weights_scale_l) / output_scale_l;
+        auto conv_l = std::make_shared<op::QuantizedConvolutionBias>(q_input_l,
+                                                                     q_weights_l,
+                                                                     q_bias_l,
+                                                                     Strides{1, 1},
+                                                                     Strides{1, 1},
+                                                                     CoordinateDiff{0, 0},
+                                                                     CoordinateDiff{0, 0},
+                                                                     Strides{1, 1},
+                                                                     requant_scale_l);
+        auto dq_l = std::make_shared<op::Dequantize>(
+            conv_l, output_scale_l, int8_zero, element::f32, AxisSet{});
+        auto r_l = std::make_shared<op::Reshape>(dq_l, AxisVector{0, 1, 2, 3}, Shape{1, 2, 2});
+        auto b_l = std::make_shared<op::Broadcast>(r_l, Shape{1, 1, 2, 2}, AxisSet{0});
+
+        // Right Graph
+        auto requant_scale_r = (input_scale_r * weights_scale_r) / output_scale_r;
+        auto conv_r = std::make_shared<op::QuantizedConvolutionBias>(q_input_r,
+                                                                     q_weights_r,
+                                                                     q_bias_r,
+                                                                     Strides{1, 1},
+                                                                     Strides{1, 1},
+                                                                     CoordinateDiff{0, 0},
+                                                                     CoordinateDiff{0, 0},
+                                                                     Strides{1, 1},
+                                                                     requant_scale_r);
+        auto dq_r = std::make_shared<op::Dequantize>(
+            conv_r, output_scale_r, int8_zero, element::f32, AxisSet{});
+        auto r_r = std::make_shared<op::Reshape>(dq_r, AxisVector{0, 1, 2, 3}, Shape{1, 2, 2});
+        auto b_r = std::make_shared<op::Broadcast>(r_r, Shape{1, 1, 2, 2}, AxisSet{0});
+        auto add = b_l + b_r;
+        auto relu = std::make_shared<op::Relu>(add);
+        auto q = std::make_shared<op::Quantize>(
+            relu, output_scale_r, uint8_zero, element::u8, AxisSet{}, round_mode);
+        auto dq = std::make_shared<op::Dequantize>(
+            q, output_scale_r, uint8_zero, element::f32, AxisSet{});
+        return make_shared<Function>(
+            NodeVector{dq},
+            ParameterVector{input_l, weights_l, bias_l, input_r, weights_r, bias_r});
+    };
+
+    auto cpu_f1 = make_function();
+    auto cpu_f2 = make_function();
+
+    test::Uniform<float> rng(2.0f, 2.0f);
+    vector<vector<float>> args;
+    for (shared_ptr<op::Parameter> param : cpu_f1->get_parameters())
+    {
+        vector<float> tensor_val(shape_size(param->get_shape()));
+        rng.initialize(tensor_val);
+        args.push_back(tensor_val);
+    }
+
+    // Disable CPUQuantFusion
+    set_environment("NGRAPH_PASS_ENABLES", "CPUQuantFusion:0", 1);
+    auto cpu1_results = execute(cpu_f1, args, "CPU");
+    // Enable CPUQuantFusion
+    set_environment("NGRAPH_PASS_ENABLES", "CPUQuantFusion:1", 1);
+    auto cpu2_results = execute(cpu_f2, args, "CPU");
+    EXPECT_TRUE(test::all_close(cpu1_results.at(0), cpu2_results.at(0)));
+
+    auto backend = runtime::Backend::create("CPU");
+    auto fuse = make_function();
+    backend->compile(fuse);
+    ASSERT_EQ(count_ops_of_type<op::Quantize>(fuse), 6);
+}
+
+#ifndef NGRAPH_JSON_DISABLE
 // Tests that rely on deserializing json files
 TEST(cpu_fusion, fuse_conv_bias)
 {
@@ -3744,7 +3956,7 @@ TEST(cpu_fusion, gemm_mlp)
     stringstream ss(json_string);
     shared_ptr<Function> func = ngraph::deserialize(ss);
     pass::Manager pass_manager;
-    pass_manager.register_pass<runtime::cpu::pass::CPUFusion>(pass::REGULAR_FUSIONS);
+    pass_manager.register_pass<runtime::cpu::pass::CPUFusion>(pass::FusionType::REGULAR_FUSIONS);
     pass_manager.run_passes(func);
     auto mmbs = count_ops_of_type<op::MatmulBias>(func);
     ASSERT_EQ(mmbs, 3);
@@ -3755,7 +3967,7 @@ TEST(cpu_fusion, fuse_fprop_bn)
     pass::Manager pass_manager;
     pass_manager.register_pass<pass::VisualizeTree>("bn_fprop_before_fusion.png");
     pass_manager.register_pass<ngraph::pass::ReshapeElimination>();
-    pass_manager.register_pass<runtime::cpu::pass::CPUFusion>(pass::REGULAR_FUSIONS);
+    pass_manager.register_pass<runtime::cpu::pass::CPUFusion>(pass::FusionType::REGULAR_FUSIONS);
     pass_manager.register_pass<pass::VisualizeTree>("bn_fprop_after_fusion.png");
     const string json_path = file_util::path_join(SERIALIZED_ZOO, "mxnet/bn_fprop_b2c3h2w2.json");
     const string json_string = file_util::read_file_to_string(json_path);
@@ -3921,7 +4133,7 @@ TEST(cpu_fusion, rnn_fusion_from_json_model)
 {
     pass::Manager pass_manager;
     pass_manager.register_pass<runtime::cpu::pass::CPURnnMatFusion>();
-    pass_manager.register_pass<runtime::cpu::pass::CPUFusion>(pass::REGULAR_FUSIONS);
+    pass_manager.register_pass<runtime::cpu::pass::CPUFusion>(pass::FusionType::REGULAR_FUSIONS);
     const string json_path =
         file_util::path_join(SERIALIZED_ZOO, "mxnet/rnn-10-step-fusion-test.json");
     const string json_string = file_util::read_file_to_string(json_path);
@@ -4086,4 +4298,28 @@ TEST(cpu_fusion, validate_fuse_gru_inputs)
         EXPECT_TRUE(test::all_close(cpu_results.at(i), int_results.at(i), 1.0e-4f, 1.0e-4f));
     }
 }
+
+#if defined(AUTODIFF_BACKEND_CPU) && !defined(NGRAPH_JSON_DISABLE)
+NGRAPH_TEST(cpu_fusion, backwards_batchmatmultranspose_tensor2_tensor2)
+{
+    auto backend = runtime::Backend::create("CPU");
+
+    const std::string file_name("mxnet/batch_dot_3.json");
+    auto f = make_function_from_file(file_name);
+
+    test::Uniform<float> rng(-1.0f, 1.0f);
+    std::vector<std::shared_ptr<ngraph::runtime::Tensor>> args;
+    for (shared_ptr<op::Parameter> param : f->get_parameters())
+    {
+        args.push_back(rng.initialize(backend->create_tensor<float>(param->get_shape())));
+    }
+
+    auto g = make_function_from_file(file_name);
+    pass::Manager pass_manager;
+    pass_manager.register_pass<runtime::cpu::pass::CPUBatchFusion>();
+    pass_manager.run_passes(g);
+    EXPECT_TRUE(autodiff_numeric_compare<float>(backend.get(), f, g, args, .01f, .01f));
+}
+#endif
+
 #endif

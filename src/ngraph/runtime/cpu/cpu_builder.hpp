@@ -76,6 +76,52 @@
         KV = K<uint64_t>;                                                                          \
     }
 
+#define SELECT_KERNEL_3ARGS(KV, ET, K)                                                             \
+    if (ET == element::boolean)                                                                    \
+    {                                                                                              \
+        KV = K<char, char, char>;                                                                  \
+    }                                                                                              \
+    else if (ET == element::f32)                                                                   \
+    {                                                                                              \
+        KV = K<float, float, float>;                                                               \
+    }                                                                                              \
+    else if (ET == element::f64)                                                                   \
+    {                                                                                              \
+        KV = K<double, double, double>;                                                            \
+    }                                                                                              \
+    else if (ET == element::i8)                                                                    \
+    {                                                                                              \
+        KV = K<int8_t, int8_t, int8_t>;                                                            \
+    }                                                                                              \
+    else if (ET == element::i16)                                                                   \
+    {                                                                                              \
+        KV = K<int16_t, int16_t, int16_t>;                                                         \
+    }                                                                                              \
+    else if (ET == element::i32)                                                                   \
+    {                                                                                              \
+        KV = K<int32_t, int32_t, int32_t>;                                                         \
+    }                                                                                              \
+    else if (ET == element::i64)                                                                   \
+    {                                                                                              \
+        KV = K<int64_t, int64_t, int64_t>;                                                         \
+    }                                                                                              \
+    else if (ET == element::u8)                                                                    \
+    {                                                                                              \
+        KV = K<uint8_t, uint8_t, uint8_t>;                                                         \
+    }                                                                                              \
+    else if (ET == element::u16)                                                                   \
+    {                                                                                              \
+        KV = K<uint16_t, uint16_t, uint16_t>;                                                      \
+    }                                                                                              \
+    else if (ET == element::u32)                                                                   \
+    {                                                                                              \
+        KV = K<uint32_t, uint32_t, uint32_t>;                                                      \
+    }                                                                                              \
+    else if (ET == element::u64)                                                                   \
+    {                                                                                              \
+        KV = K<uint64_t, uint64_t, uint64_t>;                                                      \
+    }
+
 #define SELECT_RANK(KV, ET, R, K)                                                                  \
     if (R == 1)                                                                                    \
         KV = K<ET, 1>;                                                                             \
@@ -158,6 +204,57 @@
         throw ngraph_error("Unsupported element type " + ET.c_type_string() + " for kernel " #K);  \
     }
 
+#define SELECT_RANK1(KV, ET, R1, R2, K)                                                            \
+    if (R1 == 1)                                                                                   \
+        KV = K<ET, 1, R2>;                                                                         \
+    else if (R1 == 2)                                                                              \
+        KV = K<ET, 2, R2>;                                                                         \
+    else if (R1 == 3)                                                                              \
+        KV = K<ET, 3, R2>;                                                                         \
+    else                                                                                           \
+        throw ngraph_error("Unsupported first rank " + std::to_string(R1) + " for kernel " #K);
+
+#define SELECT_2RANKS(KV, ET, R1, R2, K)                                                           \
+    if (R2 == 1)                                                                                   \
+    {                                                                                              \
+        SELECT_RANK1(KV, ET, R1, 1, K);                                                            \
+    }                                                                                              \
+    else if (R2 == 2)                                                                              \
+    {                                                                                              \
+        SELECT_RANK1(KV, ET, R1, 2, K);                                                            \
+    }                                                                                              \
+    else if (R2 == 3)                                                                              \
+    {                                                                                              \
+        SELECT_RANK1(KV, ET, R1, 3, K);                                                            \
+    }                                                                                              \
+    else                                                                                           \
+    {                                                                                              \
+        throw ngraph_error("Unsupported second rank " + std::to_string(R2) + " for kernel " #K);   \
+    }
+
+// Per-type and ranks kernel macro
+#define SELECT_KERNEL_BY_2RANKS(KV, ET, R1, R2, K)                                                 \
+    if (ET == element::f32)                                                                        \
+    {                                                                                              \
+        SELECT_2RANKS(KV, float, R1, R2, K);                                                       \
+    }                                                                                              \
+    else if (ET == element::f64)                                                                   \
+    {                                                                                              \
+        SELECT_2RANKS(KV, double, R1, R2, K);                                                      \
+    }                                                                                              \
+    else if (ET == element::u8)                                                                    \
+    {                                                                                              \
+        SELECT_2RANKS(KV, uint8_t, R1, R2, K);                                                     \
+    }                                                                                              \
+    else if (ET == element::i8)                                                                    \
+    {                                                                                              \
+        SELECT_2RANKS(KV, int8_t, R1, R2, K);                                                      \
+    }                                                                                              \
+    else                                                                                           \
+    {                                                                                              \
+        throw ngraph_error("Unsupported element type " + ET.c_type_string() + " for kernel " #K);  \
+    }
+
 // Helper macros for a partial set of element types and ranks
 // Useful for keeping compilation time and memory usage reasonable
 // when the computed expression is complex
@@ -208,11 +305,15 @@
     SELECT_KERNEL(kernel, args[0].get_element_type(), OP);                                         \
                                                                                                    \
     auto element_count = out[0].get_size();                                                        \
-    auto& arg0_tensor = external_function->get_tensor_data(args[0].get_name());                    \
-    auto& out0_tensor = external_function->get_tensor_data(out[0].get_name());                     \
+    auto arg0_buffer_index = external_function->get_buffer_index(args[0].get_name());              \
+    auto out0_buffer_index = external_function->get_buffer_index(out[0].get_name());               \
                                                                                                    \
-    auto functor = [&, kernel, element_count](CPURuntimeContext* ctx, CPUExecutionContext* ectx) { \
-        kernel(arg0_tensor, out0_tensor, element_count, ectx->arena);                              \
+    auto functor = [&, kernel, element_count, arg0_buffer_index, out0_buffer_index](               \
+        CPURuntimeContext* ctx, CPUExecutionContext* ectx) {                                       \
+        kernel(ctx->buffer_data[arg0_buffer_index],                                                \
+               ctx->buffer_data[out0_buffer_index],                                                \
+               element_count,                                                                      \
+               ectx->arena);                                                                       \
     };                                                                                             \
     functors.emplace_back(functor);
 
@@ -223,13 +324,19 @@
     SELECT_KERNEL(kernel, args[0].get_element_type(), OP);                                         \
                                                                                                    \
     auto element_count = out[0].get_size();                                                        \
-    auto& arg0_tensor = external_function->get_tensor_data(args[0].get_name());                    \
-    auto& arg1_tensor = external_function->get_tensor_data(args[1].get_name());                    \
-    auto& out0_tensor = external_function->get_tensor_data(out[0].get_name());                     \
+    auto arg0_buffer_index = external_function->get_buffer_index(args[0].get_name());              \
+    auto arg1_buffer_index = external_function->get_buffer_index(args[1].get_name());              \
+    auto out0_buffer_index = external_function->get_buffer_index(out[0].get_name());               \
                                                                                                    \
-    auto functor = [&, kernel, element_count](CPURuntimeContext* ctx, CPUExecutionContext* ectx) { \
-        kernel(arg0_tensor, arg1_tensor, out0_tensor, element_count, ectx->arena);                 \
-    };                                                                                             \
+    auto functor =                                                                                 \
+        [&, kernel, element_count, arg0_buffer_index, arg1_buffer_index, out0_buffer_index](       \
+            CPURuntimeContext* ctx, CPUExecutionContext* ectx) {                                   \
+            kernel(ctx->buffer_data[arg0_buffer_index],                                            \
+                   ctx->buffer_data[arg1_buffer_index],                                            \
+                   ctx->buffer_data[out0_buffer_index],                                            \
+                   element_count,                                                                  \
+                   ectx->arena);                                                                   \
+        };                                                                                         \
     functors.emplace_back(functor);
 
 #define BUILD_UNARY_ELEMWISE_CF_FUNCTOR(OP)                                                        \

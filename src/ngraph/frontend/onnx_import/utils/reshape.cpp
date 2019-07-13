@@ -23,9 +23,8 @@
 #include <vector>
 
 #include "exceptions.hpp"
+#include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/reshape.hpp"
-#include "ngraph/op/slice.hpp"
-#include "ngraph/op/util/reshape.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
 
@@ -35,56 +34,6 @@ namespace ngraph
     {
         namespace reshape
         {
-            namespace
-            {
-                inline std::size_t get_valid_array_index(std::size_t idx, std::size_t axis_size)
-                {
-                    return std::min(idx, axis_size);
-                }
-
-                std::shared_ptr<op::Slice> make_ng_slice(const std::shared_ptr<ngraph::Node>& node,
-                                                         const std::vector<std::size_t>& axes,
-                                                         const std::vector<std::size_t>& starts,
-                                                         const std::vector<std::size_t>& ends)
-                {
-                    std::vector<std::size_t> upper_bounds{node->get_shape()};
-                    std::vector<std::size_t> lower_bounds(upper_bounds.size());
-                    for (std::size_t index{0}; index < axes.size(); ++index)
-                    {
-                        std::size_t axis{axes.at(index)};
-                        lower_bounds.at(axis) =
-                            get_valid_array_index(starts.at(index), node->get_shape().at(axis));
-                        upper_bounds.at(axis) =
-                            get_valid_array_index(ends.at(index), node->get_shape().at(axis));
-                    }
-                    return std::make_shared<op::Slice>(node, lower_bounds, upper_bounds);
-                }
-
-            } // namespace anonymous
-
-            std::shared_ptr<ngraph::Node> flatten(const std::shared_ptr<ngraph::Node>& node,
-                                                  int axis)
-            {
-                auto data_shape = node->get_shape();
-
-                //  First dimension of output tensor is the product of [d_0, ... d_{axis-1}] dimensions of input tensor.
-                //  The last dimension is the product of the rest of input tensor dimensions: [d_{axis}, ..., d_n]
-                size_t first_dim_size = std::accumulate(std::begin(data_shape),
-                                                        std::next(std::begin(data_shape), axis),
-                                                        1UL,
-                                                        std::multiplies<std::size_t>());
-
-                size_t last_dim_size = std::accumulate(std::next(std::begin(data_shape), axis),
-                                                       std::end(data_shape),
-                                                       1UL,
-                                                       std::multiplies<std::size_t>());
-
-                return std::make_shared<ngraph::op::Reshape>(
-                    node,
-                    ngraph::get_default_order(data_shape.size()),
-                    Shape{first_dim_size, last_dim_size});
-            }
-
             std::vector<std::size_t> infer_dimensions(const std::string& node_name,
                                                       const std::vector<std::size_t>& input_shape,
                                                       const std::vector<std::size_t>& output_shape)
@@ -140,14 +89,6 @@ namespace ngraph
                 return inferred_dims;
             }
 
-            std::shared_ptr<ngraph::Node> transpose(const std::shared_ptr<ngraph::Node>& node)
-            {
-                std::vector<size_t> axes_order(node->get_shape().size());
-                std::iota(std::begin(axes_order), std::end(axes_order), 0);
-                std::reverse(std::begin(axes_order), std::end(axes_order));
-                return ngraph::op::util::reorder_axes(node, axes_order);
-            }
-
             std::shared_ptr<ngraph::Node> squeeze(const std::shared_ptr<ngraph::Node>& node,
                                                   std::vector<std::size_t> axes)
             {
@@ -169,7 +110,7 @@ namespace ngraph
                         output_shape.push_back(axis);
                     }
                 }
-                return ngraph::op::util::reshape(node, output_shape);
+                return ngraph::builder::reshape(node, output_shape);
             }
 
             std::shared_ptr<ngraph::Node> collapse(const std::shared_ptr<ngraph::Node>& node,
@@ -187,7 +128,7 @@ namespace ngraph
                 output_shape.insert(std::end(output_shape),
                                     std::next(std::begin(shape), end_axis + 1),
                                     std::end(shape));
-                return ngraph::op::util::reshape(node, output_shape);
+                return ngraph::builder::reshape(node, output_shape);
             }
 
             std::shared_ptr<ngraph::Node> expand_dims(const std::shared_ptr<ngraph::Node>& node,
@@ -202,34 +143,22 @@ namespace ngraph
                     node, ngraph::get_default_order(node->get_shape().size()), output_shape);
             }
 
-            NodeVector split(const std::shared_ptr<ngraph::Node>& node,
-                             const std::vector<std::size_t>& length_parts,
-                             std::size_t axis)
+            std::shared_ptr<ngraph::Node>
+                interpret_as_scalar(const std::shared_ptr<ngraph::Node>& node)
             {
-                std::size_t start_index{0};
-                NodeVector outputs;
-                for (const auto& length_part : length_parts)
-                {
-                    std::size_t end_index{start_index + length_part};
-                    outputs.push_back(make_ng_slice(node, {axis}, {start_index}, {end_index}));
-                    start_index = end_index;
-                }
-                return outputs;
-            }
+                Shape node_shape = node->get_shape();
 
-            NodeVector
-                split(const std::shared_ptr<ngraph::Node>& node, std::size_t split_parts, int axis)
-            {
-                std::size_t axis_to_split{static_cast<std::size_t>(axis)};
-                if (axis < 0)
+                // If node is already a scalar, return original
+                if (node_shape.empty())
                 {
-                    axis_to_split = node->get_shape().size() + axis;
+                    return node;
                 }
 
-                std::size_t length_axis_to_split{node->get_shape().at(axis_to_split)};
-                std::vector<std::size_t> length_parts(split_parts,
-                                                      length_axis_to_split / split_parts);
-                return split(node, length_parts, axis_to_split);
+                NGRAPH_CHECK((shape_size(node_shape) == 1),
+                             "Scalar value can't be derived from a node with ",
+                             node_shape);
+
+                return ngraph::builder::reshape(node, Shape{});
             }
 
         } // namespace  reshape

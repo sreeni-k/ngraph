@@ -110,7 +110,7 @@ TEST(reshape_sinking, broadcast_swimming)
     ASSERT_EQ(add->get_argument(1), conv);
 }
 
-#ifdef NGRAPH_JSON_ENABLE
+#ifndef NGRAPH_JSON_DISABLE
 TEST(reshape_sinking, mnist_conv)
 {
     const string json_path = file_util::path_join(SERIALIZED_ZOO, "tf_conv_mnist_nhwc.json");
@@ -274,4 +274,11 @@ TEST(reshape_sinking, concat)
     pass_manager.run_passes(f);
     size_t before_after = count_ops_of_type<op::Reshape>(f);
     ASSERT_LE(before_after, before_count);
+}
+
+TEST(reshape_sinking, pass_property)
+{
+    auto pass = std::make_shared<ngraph::pass::ReshapeSinking>();
+    ASSERT_EQ(true, pass->get_property(pass::PassProperty::REQUIRE_STATIC_SHAPE));
+    ASSERT_EQ(false, pass->get_property(pass::PassProperty::CHANGE_DYNAMIC_STATE));
 }

@@ -1,17 +1,16 @@
 .. frameworks/index.rst: 
 
-Current framework integrations  
-==============================
+Connect a framework  
+===================
 
 .. toctree::
    :maxdepth: 1
    
-   tensorflow_integ.rst
+   tensorflow_connect.rst
    mxnet_integ.rst
    onnx_integ.rst
    paddle_integ.rst
    validated/testing-latency.rst
-
 
 A framework is "supported" when there is a framework :term:`bridge` that can be 
 cloned from one of our GitHub repos and built to connect to nGraph device 

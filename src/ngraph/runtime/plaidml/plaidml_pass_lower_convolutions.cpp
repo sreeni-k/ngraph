@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2018 Intel Corporation
+// Copyright 2017-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ ngraph::runtime::plaidml::pass::LowerConvolutions::LowerConvolutions()
                    pattern::has_class<ngraph::op::ConvolutionBackpropFilters>()(node);
         });
 
-    pattern::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    auto callback = [](pattern::Matcher& m) {
         auto to_transpose = [](const std::shared_ptr<Node>& node) -> ngraph::op::Reshape* {
             if (!node)
             {
@@ -75,19 +75,19 @@ ngraph::runtime::plaidml::pass::LowerConvolutions::LowerConvolutions()
         // op.  Using target always works.
         AxisVector out_axes = to_axes(target, output_transpose);
 
-        auto lhs = node->get_arguments().at(0);
+        auto lhs = node->get_argument(0);
         auto* lhs_transpose = to_transpose(lhs);
         if (lhs_transpose)
         {
-            lhs = lhs_transpose->get_arguments().at(0);
+            lhs = lhs_transpose->get_argument(0);
         }
         AxisVector lhs_axes = to_axes(lhs, lhs_transpose);
 
-        auto rhs = node->get_arguments().at(1);
+        auto rhs = node->get_argument(1);
         auto* rhs_transpose = to_transpose(rhs);
         if (rhs_transpose)
         {
-            rhs = rhs_transpose->get_arguments().at(0);
+            rhs = rhs_transpose->get_argument(0);
         }
         AxisVector rhs_axes = to_axes(rhs, rhs_transpose);
 
@@ -140,5 +140,5 @@ ngraph::runtime::plaidml::pass::LowerConvolutions::LowerConvolutions()
         return false;
     };
 
-    add_matcher(std::make_shared<pattern::Matcher>(convolution_op, callback));
+    add_matcher(std::make_shared<pattern::Matcher>(convolution_op), callback);
 }

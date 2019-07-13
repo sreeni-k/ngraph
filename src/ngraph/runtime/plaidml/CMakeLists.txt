@@ -16,6 +16,7 @@
 
 set(SRC
     plaidml_backend.cpp
+    plaidml_backend_constructor.cpp
     plaidml_builder.cpp
     plaidml_compilation_cache.cpp
     plaidml_compiler.cpp
@@ -32,6 +33,7 @@ set(SRC
     plaidml_ops_convolution.cpp
     plaidml_ops_dot.cpp
     plaidml_ops_general.cpp
+    plaidml_ops_implicit_broadcast.cpp
     plaidml_ops_index_reduction.cpp
     plaidml_ops_io.cpp
     plaidml_ops_local_response_norm.cpp
@@ -39,6 +41,7 @@ set(SRC
     plaidml_ops_one_hot.cpp
     plaidml_ops_passthrough.cpp
     plaidml_ops_pool.cpp
+    plaidml_ops_quantize.cpp
     plaidml_ops_reduce.cpp
     plaidml_ops_replace_slice.cpp
     plaidml_ops_replicate.cpp
@@ -52,6 +55,7 @@ set(SRC
     plaidml_pass_explicit_logicals.cpp
     plaidml_pass_implicit_broadcast.cpp
     plaidml_pass_lower_convolutions.cpp
+    plaidml_pass_prefix_reshape_elimination.cpp
     plaidml_pass_replicate_combination.cpp
     plaidml_pass_replicate_elision.cpp
     plaidml_pass_winograd.cpp

@@ -24,6 +24,7 @@
 #include <iomanip>
 
 #include "benchmark.hpp"
+#include "ngraph/distributed.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/file_util.hpp"
 #include "ngraph/graph_util.hpp"
@@ -34,10 +35,6 @@
 #include "ngraph/runtime/backend.hpp"
 #include "ngraph/serializer.hpp"
 #include "ngraph/util.hpp"
-
-#if defined NGRAPH_DISTRIBUTED_ENABLE
-#include "ngraph/distributed.hpp"
-#endif
 
 using namespace std;
 using namespace ngraph;
@@ -81,14 +78,14 @@ multimap<size_t, string> aggregate_timing_details(const vector<PerfShape>& perf_
     for (const PerfShape& p : perf_data)
     {
         auto node = p.get_node();
-        string op = node->get_name().substr(0, node->get_name().find('_'));
+        string op = node->description();
         string shape_name = " {" + join(p.shape) + "} ";
         timing[op + shape_name] += p.microseconds();
         count[op + shape_name] += 1;
     }
 
     multimap<size_t, string> rc;
-    for (const pair<string, size_t>& t : timing)
+    for (auto& t : timing)
     {
         rc.insert({t.second, t.first + to_string(count[t.first])});
     }
@@ -101,12 +98,12 @@ multimap<size_t, string> aggregate_timing(const vector<PerfShape>& perf_data)
     for (const PerfShape& p : perf_data)
     {
         auto node = p.get_node();
-        string op = node->get_name().substr(0, node->get_name().find('_'));
+        string op = node->description();
         timing[op] += p.microseconds();
     }
 
     multimap<size_t, string> rc;
-    for (const pair<string, size_t>& t : timing)
+    for (auto& t : timing)
     {
         rc.insert({t.second, t.first});
     }
@@ -118,7 +115,7 @@ void print_times(const multimap<size_t, string>& timing)
     // set the column widths
     int name_width = 0;
     int time_width = 0;
-    for (const pair<size_t, string>& p : timing)
+    for (auto& p : timing)
     {
         name_width = max(name_width, static_cast<int>(p.second.size()));
         time_width = max(time_width, static_cast<int>(locale_string(p.first).size()));
@@ -270,7 +267,7 @@ int main(int argc, char** argv)
     {
         cout << R"###(
 DESCRIPTION
-    Benchmark ngraph json model with given backend.
+    Benchmark nGraph JSON model with given backend.
 
 SYNOPSIS
         nbench [-f <filename>] [-b <backend>] [-i <iterations>]
@@ -280,23 +277,15 @@ OPTIONS
         -b|--backend              Backend to use (default: CPU)
         -d|--directory            Directory to scan for models. All models are benchmarked.
         -i|--iterations           Iterations (default: 10)
-        -s|--statistics           Display op stastics
-        -v|--visualize            Visualize a model (WARNING: requires GraphViz installed)
+        -s|--statistics           Display op statistics
+        -v|--visualize            Visualize a model (WARNING: requires Graphviz installed)
         --timing_detail           Gather detailed timing
         -w|--warmup_iterations    Number of warm-up iterations
         --no_copy_data            Disable copy of input/result data every iteration
-        --dot                     Generate graphviz dot file
+        --dot                     Generate Graphviz dot file
 )###";
         return 1;
     }
-
-#if defined NGRAPH_DISTRIBUTED_ENABLE
-    unique_ptr<ngraph::Distributed> dist(new ngraph::Distributed());
-    if (dist->get_size() == 1)
-    {
-        dist.reset();
-    }
-#endif
 
     vector<string> models;
     if (!directory.empty())
@@ -330,8 +319,8 @@ OPTIONS
             if (visualize)
             {
                 shared_ptr<Function> f = deserialize(model);
-                auto model_file_name = ngraph::file_util::get_file_name(model) + std::string(".") +
-                                       (dot_file ? "dot" : pass::VisualizeTree::get_file_ext());
+                auto model_file_name = ngraph::file_util::get_file_name(model) +
+                                       (dot_file ? ".dot" : ngraph::file_util::get_file_ext(model));
 
                 pass::Manager pass_manager;
                 pass_manager.register_pass<pass::VisualizeTree>(model_file_name, nullptr, true);
@@ -366,8 +355,7 @@ OPTIONS
                         total_temporary_bytes += tensor->size();
                         total_temporary_count++;
                     }
-                    string name = node->get_name();
-                    string op_name = name.substr(0, name.find('_'));
+                    string op_name = node->description();
                     string shape_name = "{" + join(node->output(0).get_shape()) + "}";
                     op_list[op_name + shape_name]++;
                     auto et = get_op_element_type(*node);
@@ -422,7 +410,7 @@ OPTIONS
                     cout << "    " << type << "\n";
                 }
                 cout << "--\n";
-                for (const pair<string, size_t>& op_info : op_list)
+                for (auto& op_info : op_list)
                 {
                     cout << op_info.first << ": " << op_info.second << " ops" << endl;
                 }
@@ -460,13 +448,6 @@ OPTIONS
         cout << "============================================================================\n";
         print_results(aggregate_perf_data, timing_detail);
     }
-
-#if defined NGRAPH_DISTRIBUTED_ENABLE
-    if (dist)
-    {
-        dist.reset();
-    }
-#endif
 
     return rc;
 }

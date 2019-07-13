@@ -23,8 +23,6 @@
 
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/node_vector.hpp"
-#include "ngraph/op/util/reshape.hpp"
 #include "ngraph/shape.hpp"
 
 namespace ngraph
@@ -33,15 +31,6 @@ namespace ngraph
     {
         namespace reshape
         {
-            /// \brief Flatten the input tensor into a 2D matrix.
-            ///
-            /// \param node The tensor to be flattened.
-            /// \param axis The axis dividing shape.
-            ///
-            /// \return The new node being a 2D matrix representing flattened input node.
-            std::shared_ptr<ngraph::Node> flatten(const std::shared_ptr<ngraph::Node>& node,
-                                                  int axis);
-
             /// \brief      Infer `output_shape` dimension values.
             ///
             /// \par Inferention rules
@@ -59,13 +48,6 @@ namespace ngraph
             std::vector<std::size_t> infer_dimensions(const std::string& node_name,
                                                       const std::vector<std::size_t>& input_shape,
                                                       const std::vector<std::size_t>& output_shape);
-
-            /// \brief Return transposed tensor (with axes in reversed order).
-            ///
-            /// \param node Input tensor we want to transpose
-            ///
-            /// \return: New node with reversed dimensions.
-            std::shared_ptr<ngraph::Node> transpose(const std::shared_ptr<ngraph::Node>& node);
 
             /// \brief      Remove empty axes from input tensor.
             ///
@@ -103,34 +85,18 @@ namespace ngraph
             std::shared_ptr<ngraph::Node> expand_dims(const std::shared_ptr<ngraph::Node>& node,
                                                       std::size_t axis = 0);
 
-            /// \brief      Split node on specified axis into multiple parts.
+            /// \brief      Handle a node which represents a scalar value.
             ///
-            /// \param[in]  node          The input node.
-            /// \param[in]  length_parts  The vector defining the lengts of each splitted part.
-            /// \param[in]  axis          The axis we split input node on. Default value is zero axis.
+            /// \note       Some ONNX nodes, which should provide scalar values are given as
+            ///             tensors of shape {1}. This function will provide a reshape of
+            ///             such a node with Shape{1} into a scalar with Shape{}.
             ///
-            /// \return     The vector containing multiple nodes we split input node into.
+            /// \param[in]  node   Node to reshape.
             ///
-            NodeVector split(const std::shared_ptr<ngraph::Node>& node,
-                             const std::vector<std::size_t>& length_parts,
-                             std::size_t axis = 0);
-
-            /// \brief      Split node on specified axis into multiple parts.
+            /// \return     Original node or a node representing a reshape of the original.
             ///
-            /// \param[in]  node          The input node.
-            /// \param[in]  split_parts   The number of parts we want to split input node at given
-            ///                           axis. The length of the axis to split must be divisible by
-            ///                           this value.
-            /// \param[in]  axis          The axis we split input node on. Default value is zero axis.
-            ///
-            /// \note       This implementation supports negative `axis` values (similar to NumPy
-            ///             indexing).
-            ///
-            /// \return     The vector containing multiple nodes we split input node into.
-            ///
-            NodeVector split(const std::shared_ptr<ngraph::Node>& node,
-                             std::size_t split_parts,
-                             int axis = 0);
+            std::shared_ptr<ngraph::Node>
+                interpret_as_scalar(const std::shared_ptr<ngraph::Node>& node);
 
         } // namespace  reshape
     }     // namespace onnx_import

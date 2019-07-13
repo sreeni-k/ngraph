@@ -24,14 +24,20 @@
 using namespace std;
 using namespace ngraph;
 
-extern "C" const char* get_ngraph_version_string()
+extern "C" runtime::BackendConstructor* get_backend_constructor_pointer()
 {
-    return NGRAPH_VERSION;
-}
+    class LocalBackendConstructor : public runtime::BackendConstructor
+    {
+    public:
+        std::shared_ptr<runtime::Backend> create(const std::string& config) override
+        {
+            return std::make_shared<runtime::gcpu::GCPUBackend>();
+        }
+    };
 
-extern "C" runtime::Backend* new_backend(const char* configuration_string)
-{
-    return new runtime::gcpu::GCPUBackend();
+    static unique_ptr<runtime::BackendConstructor> s_backend_constructor(
+        new LocalBackendConstructor());
+    return s_backend_constructor.get();
 }
 
 runtime::gcpu::GCPUBackend::GCPUBackend()
@@ -46,14 +52,14 @@ runtime::gcpu::GCPUBackend::GCPUBackend(const vector<string>& unsupported_op_nam
 shared_ptr<runtime::Tensor> runtime::gcpu::GCPUBackend::create_tensor(const element::Type& type,
                                                                       const Shape& shape)
 {
-    return make_shared<runtime::HostTensor>(type, shape, this);
+    return make_shared<runtime::HostTensor>(type, shape);
 }
 
 shared_ptr<runtime::Tensor> runtime::gcpu::GCPUBackend::create_tensor(const element::Type& type,
                                                                       const Shape& shape,
                                                                       void* memory_pointer)
 {
-    return make_shared<runtime::HostTensor>(type, shape, memory_pointer, this);
+    return make_shared<runtime::HostTensor>(type, shape, memory_pointer);
 }
 
 shared_ptr<runtime::Executable>
