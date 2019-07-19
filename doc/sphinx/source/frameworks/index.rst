@@ -1,7 +1,7 @@
 .. frameworks/index.rst
 
-Using Frameworks
-================
+Connecting Frameworks
+=====================
 
 .. toctree::
    :maxdepth: 1

@@ -41,19 +41,34 @@ or reference packages, scripts, and other files that use licensing.
 .. _Apache 2.0 license: https://github.com/NervanaSystems/ngraph/blob/master/LICENSE
 .. _GitHub repo: https://github.com/NervanaSystems/ngraph
 
+.. _intro:
+
+Introduction
+============
 
 .. toctree::
    :maxdepth: 1
-   :caption: Getting Started
+   :glob:
+
+   project/introduction.rst
+
+
+Getting Started
+===============
+
+.. toctree::
+   :maxdepth: 1
    
    frameworks/index.rst
    frameworks/validated/list.rst
    frameworks/generic-configs.rst
 
 
+nGraph Core
+===========
+
 .. toctree::
    :maxdepth: 1
-   :caption: nGraph Core
 
    buildlb.rst
    core/overview.rst
@@ -62,40 +77,56 @@ or reference packages, scripts, and other files that use licensing.
    core/constructing-graphs/index.rst
    core/passes/passes.rst
 
-   
+
+Python API  
+==========
+
 .. toctree::
    :maxdepth: 1
-   :caption: nGraph Python API
 
    python_api/index.rst
 
    
+Backend APIs
+============
+
 .. toctree::
    :maxdepth: 1
-   :caption: Backend Developers
 
    backends/index.rst
    backends/cpp-api.rst
 
 
+Inspecting Graphs
+=================
+
 .. toctree::
    :maxdepth: 1
-   :caption: Inspecting Graphs
 
    inspection/index.rst
 
 
+Contributing
+============
+
 .. toctree::
    :maxdepth: 1
-   :caption: Project Metadata
 
-   project/release-notes.rst
-   project/introduction.rst
    project/contribution-guide.rst
    project/doc-contributor-README.rst
+
+
+Extras & Metadata
+=================
+
+.. toctree::
+   :maxdepth: 1
+
+   project/release-notes.rst
    project/index.rst
    project/extras.rst 
    glossary.rst
+
 
 .. only:: html
 
