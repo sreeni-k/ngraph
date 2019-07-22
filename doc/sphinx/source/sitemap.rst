@@ -1,14 +1,14 @@
 :orphan:
 
 
-* :ref:`introduction`
+* Introduction
 
   .. toctree::
 
      project/introduction.rst
 
 
-* :ref:`getting_started`
+* Getting Started
 
   .. toctree::
 
@@ -17,7 +17,7 @@
      frameworks/generic-configs.rst
 
 
-* :ref:`ngraph_core`
+* nGraph Core
 
   .. toctree::
 
@@ -29,31 +29,40 @@
      core/passes/passes.rst
 
 
-* :ref:`python_api`
+* Python API
 
   .. toctree::
 
      python_api/index.rst
 
 
-* :ref:`backend_apis`
+* Backend APIs
 
   .. toctree::
+     :maxdepth: 2
 
      backends/index.rst
      backends/cpp-api.rst
 
 
-* :ref:`inspection`
+* Visualization and Inspection 
 
   .. toctree::
 
      inspection/index.rst
 
 
-* :ref:`contribution_guide`
+* Contributing 
 
   .. toctree::
 
      project/contribution-guide.rst
      project/doc-contributor-README.rst
+
+
+* Extras 
+
+  .. toctree::
+
+     project/extras/index.rst
+     glossary.rst
