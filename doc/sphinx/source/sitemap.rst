@@ -1,6 +1,13 @@
 :orphan:
 
 
+* Release Notes
+
+  .. toctree::
+
+     project/release-notes.rst
+
+
 * Introduction
 
   .. toctree::
@@ -45,7 +52,7 @@
      backends/cpp-api.rst
 
 
-* Visualization and Inspection 
+* Graph Inspection 
 
   .. toctree::
 
@@ -60,9 +67,11 @@
      project/doc-contributor-README.rst
 
 
-* Extras 
+* Extras & Glossary
 
   .. toctree::
 
      project/extras/index.rst
      glossary.rst
+
+     
