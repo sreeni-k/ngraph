@@ -3,7 +3,7 @@
 
 <div align="left">
   <h4>
-    <a href="./ABOUT.md">Architecture & features</a> | <a href="./ecosystem-overview.md" >Ecosystem</a> | <a href="https://ngraph.nervanasys.com/docs/latest/project/release-notes.html">Release notes</a><span> | </span> <a href="https://ngraph.nervanasys.com/docs/latest">Documentation</a><span> | </span> <a href="#How-to-contribute" >Contribution guide</a>
+    <a href="https://www.ngraph.ai">nGraph.ai</a> | <a href="https://www.ngraph.ai/documentation/project/release-notes">Release notes</a><span> | </span> <a href="https://ngraph.ai/documentation">Documentation</a><span> | </span> <a href="#How-to-contribute" >Contribution guide</a>
  </h4>
 </div>
 
@@ -46,7 +46,7 @@ framework and deploying to a variety of hardware targets. We strongly believe in
 providing freedom, performance, and ease-of-use to AI developers. 
 
 The diagram below shows deep learning frameworks and hardware targets
-supported by nGraph. NNP-L and NNP-I in the diagram refer to Intel's next generation 
+supported by nGraph. NNP-T and NNP-I in the diagram refer to Intel's next generation 
 deep learning accelerators: Intel® Nervana™ Neural Network Processor for Learning and 
 Inference respectively.  Future plans for supporting addtional deep learning frameworks 
 and backends are outlined in the [ecosystem] section. 
