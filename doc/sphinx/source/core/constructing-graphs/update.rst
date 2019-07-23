@@ -1,4 +1,4 @@
-.. update.rst
+.. core/constructing-graphs/update.rst
 
 ###########################
 Make a stateful computation

@@ -1,4 +1,4 @@
-.. derive-for-training.rst
+.. core/constructing-graphs/derive-for-training.rst
 
 #########################
 Derive a trainable model 

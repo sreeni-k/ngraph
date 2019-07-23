@@ -1,4 +1,4 @@
-.. execute-cmp.rst
+.. core/constructing-graphs/execute.rst:
 
 ######################
 Execute a computation

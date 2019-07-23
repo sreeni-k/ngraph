@@ -1,4 +1,4 @@
-.. import.rst:
+.. core/constructing-graphs/import.rst:
 
 ###############
 Import a model

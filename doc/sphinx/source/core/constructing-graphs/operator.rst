@@ -1,4 +1,4 @@
-.. operator.rst
+.. core/constructing-graphs/operator.rst
 
 ############################
 Build a graph with operators

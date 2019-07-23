@@ -16,7 +16,14 @@ We are pleased to announce the release of version |version|-doc.
 
 Core updates for |version|
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 + Better PlaidML support
++ More ONNX ops
++ Elementwise divide defaults to Python semantics
++ GenerateMask seed optional
++ Graph visualization improvements
++ Preserve control dependencies in more places
++ GetOutputElement has single input
 
 
 Latest doc updates
@@ -39,6 +46,7 @@ Changelog on Previous Releases
 + More ONNX ops
 + Elementwise divide defaults to Python semantics
 + GenerateMask seed optional
++ Graph visualization improvements
 + Document new debug tool
 + Graph visualization improvements
 + Note deprecation of MXNet's ``ngraph-mxnet`` PyPI
