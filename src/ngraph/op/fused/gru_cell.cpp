@@ -31,10 +31,12 @@
 using namespace std;
 using namespace ngraph;
 
-op::GRUCell::GRUCell(const shared_ptr<Node>& X,
-                     const shared_ptr<Node>& W,
-                     const shared_ptr<Node>& R,
-                     const shared_ptr<Node>& H_t,
+const string op::GRUCell::type_name{"GRUCell"};
+
+op::GRUCell::GRUCell(const Output<Node>& X,
+                     const Output<Node>& W,
+                     const Output<Node>& R,
+                     const Output<Node>& H_t,
                      size_t hidden_size)
     : GRUCell(X,
               W,
@@ -49,17 +51,17 @@ op::GRUCell::GRUCell(const shared_ptr<Node>& X,
 {
 }
 
-op::GRUCell::GRUCell(const shared_ptr<Node>& X,
-                     const shared_ptr<Node>& W,
-                     const shared_ptr<Node>& R,
-                     const shared_ptr<Node>& H_t,
+op::GRUCell::GRUCell(const Output<Node>& X,
+                     const Output<Node>& W,
+                     const Output<Node>& R,
+                     const Output<Node>& H_t,
                      size_t hidden_size,
                      const vector<string>& activations,
                      const vector<float>& activation_alpha,
                      const vector<float>& activation_beta,
                      float clip,
                      bool linear_before_reset)
-    : FusedOp("GRUCell", {X, W, R, H_t})
+    : FusedOp({X, W, R, H_t})
     , RNNCellBase(hidden_size, clip, activations, activation_alpha, activation_beta)
     , m_activation_f{get_activation_function(0)}
     , m_activation_g{get_activation_function(1)}
@@ -69,18 +71,18 @@ op::GRUCell::GRUCell(const shared_ptr<Node>& X,
     constructor_validate_and_infer_types();
 }
 
-op::GRUCell::GRUCell(const shared_ptr<Node>& X,
-                     const shared_ptr<Node>& W,
-                     const shared_ptr<Node>& R,
-                     const shared_ptr<Node>& H_t,
+op::GRUCell::GRUCell(const Output<Node>& X,
+                     const Output<Node>& W,
+                     const Output<Node>& R,
+                     const Output<Node>& H_t,
                      size_t hidden_size,
-                     const shared_ptr<Node>& B,
+                     const Output<Node>& B,
                      const vector<string>& activations,
                      const vector<float>& activation_alpha,
                      const vector<float>& activation_beta,
                      float clip,
                      bool linear_before_reset)
-    : FusedOp("GRUCell", {X, W, R, H_t, B})
+    : FusedOp({X, W, R, H_t, B})
     , RNNCellBase(hidden_size, clip, activations, activation_alpha, activation_beta)
     , m_activation_f{get_activation_function(0)}
     , m_activation_g{get_activation_function(1)}
@@ -154,7 +156,7 @@ void op::GRUCell::pre_validate_and_infer_types()
                           ".");
 }
 
-NodeVector op::GRUCell::decompose_op() const
+OutputVector op::GRUCell::decompose_op() const
 {
     // ------ VARIABLE'S NAMES AND ACRONYM DEFINITIONS ------
     // The names used below are analogous to the one used in ONNX documentation.
@@ -187,20 +189,20 @@ NodeVector op::GRUCell::decompose_op() const
     // Ht = (1 - zt) (.) ht + zt (.) Ht-1
     // -------------------
 
-    std::shared_ptr<Node> X = get_argument(0);
-    std::shared_ptr<Node> W = get_argument(1);
-    std::shared_ptr<Node> R = get_argument(2);
-    std::shared_ptr<Node> H_t = get_argument(3);
-    std::shared_ptr<Node> B = get_argument(4);
+    auto X = input(0).get_source_output();
+    auto W = input(1).get_source_output();
+    auto R = input(2).get_source_output();
+    auto H_t = input(3).get_source_output();
+    auto B = input(4).get_source_output();
 
     // Get W and R biases separately.
-    NodeVector b_W_R = builder::split(B, 2);
+    OutputVector b_W_R = builder::split(B, 2);
     // Each tensor has shape: [gates_count * hidden_size]
     const auto& Wb = b_W_R.at(0);
     const auto& Rb = b_W_R.at(1);
 
     // Split W bias into zr and h gates.
-    NodeVector Wb_zr_h =
+    OutputVector Wb_zr_h =
         builder::split(Wb, vector<size_t>{2 * get_hidden_size(), get_hidden_size()});
     // Tensor shape: [2 * hidden_size]
     const auto& Wb_zr = Wb_zr_h.at(0);
@@ -208,7 +210,7 @@ NodeVector op::GRUCell::decompose_op() const
     const auto& Wb_h = Wb_zr_h.at(1);
 
     // Split R bias into zr and h gates.
-    NodeVector Rb_zr_h =
+    OutputVector Rb_zr_h =
         builder::split(Rb, vector<size_t>{2 * get_hidden_size(), get_hidden_size()});
     // Tensor shape: [2 * hidden_size]
     const auto& Rb_zr = Rb_zr_h.at(0);
@@ -216,7 +218,7 @@ NodeVector op::GRUCell::decompose_op() const
     const auto& Rb_h = Rb_zr_h.at(1);
 
     // Split R weights into zr and h gates.
-    NodeVector R_zr_h = builder::split(R, vector<size_t>{2 * get_hidden_size(), get_hidden_size()});
+    OutputVector R_zr_h = builder::split(R, vector<size_t>{2 * get_hidden_size(), get_hidden_size()});
     // Tensor shape: [2 * hidden_size, hidden_size]
     const auto& R_zr = R_zr_h.at(0);
     // Tensor shape: [hidden_size, hidden_size]
@@ -225,7 +227,7 @@ NodeVector op::GRUCell::decompose_op() const
     // Xt*(W^T)
     auto Xt_W = make_shared<op::Dot>(X, builder::transpose(W));
     // Split Xt_W into zr and h gates.
-    NodeVector Xt_W_zr_h =
+    OutputVector Xt_W_zr_h =
         builder::split(Xt_W, vector<size_t>{2 * get_hidden_size(), get_hidden_size()}, 1);
     // Tensor shape: [batch_size, 2 * hidden_size]
     const auto& Xt_W_zr = Xt_W_zr_h.at(0);
@@ -238,7 +240,7 @@ NodeVector op::GRUCell::decompose_op() const
     // Tensor shape: [batch_size, 2 * hidden_size]
     auto zr_t = m_activation_f(clip(add(Xt_W_zr, add(Ht_R_zr, add(Wb_zr, Rb_zr)))));
     // Split into update and reset gates.
-    NodeVector zr_t_gates = builder::split(zr_t, 2, 1);
+    OutputVector zr_t_gates = builder::split(zr_t, 2, 1);
     // Tensor shape: [batch_size, hidden_size]
     const auto& z_t = zr_t_gates.at(0);
     const auto& r_t = zr_t_gates.at(1);

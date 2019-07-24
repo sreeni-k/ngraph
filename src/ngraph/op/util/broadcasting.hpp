@@ -33,6 +33,7 @@ namespace ngraph
         ///
         /// \return Numpy-style broadcasted list of nodes.
         NodeVector numpy_style_broadcast(const NodeVector& inputs);
+        OutputVector numpy_style_broadcast(const OutputVector& inputs);
 
         /// \brief Cast shape of an input node to the requested output shape using NumPy's broadcasting rules
         ///
@@ -40,9 +41,9 @@ namespace ngraph
         /// \param shape requested output shape
         ///
         /// \return Broadcast node.
-        std::shared_ptr<ngraph::Node>
-            numpy_style_broadcast(const std::shared_ptr<ngraph::Node>& input_node,
-                                  const Shape& shape);
+        std::shared_ptr<Node> numpy_style_broadcast(const std::shared_ptr<Node>& input_node,
+                                                    const Shape& shape);
+        Output<Node> numpy_style_broadcast(const Output<Node>& input_node, const Shape& shape);
 
         /// \brief Cast shape of two nodes to make them compatible for an element-wise binary operation.
         ///
@@ -59,10 +60,12 @@ namespace ngraph
         /// \param start_match_axis position in shape denoting start of the mutually equal shape
         ///
         /// \return Left and right node after broadcasting.
-        NodeVector
-            legacy_style_broadcast_for_binary_operation(const std::shared_ptr<ngraph::Node>& left,
-                                                        const std::shared_ptr<ngraph::Node>& right,
-                                                        std::size_t start_match_axis);
+        NodeVector legacy_style_broadcast_for_binary_operation(const std::shared_ptr<Node>& left,
+                                                               const std::shared_ptr<Node>& right,
+                                                               std::size_t start_match_axis);
+        OutputVector legacy_style_broadcast_for_binary_operation(const Output<Node>& left,
+                                                                 const Output<Node>& right,
+                                                                 std::size_t start_match_axis);
 
         /// \brief      Broadcast shape of two nodes to make them compatible for a matrix multiplication.
         ///
@@ -76,9 +79,10 @@ namespace ngraph
         ///
         /// \return     The vector containing both nodes broadcasted.
         ///
-        NodeVector
-            numpy_style_broadcast_for_matmul_operation(const std::shared_ptr<ngraph::Node>& left,
-                                                       const std::shared_ptr<ngraph::Node>& right);
+        NodeVector numpy_style_broadcast_for_matmul_operation(const std::shared_ptr<Node>& left,
+                                                              const std::shared_ptr<Node>& right);
+        OutputVector numpy_style_broadcast_for_matmul_operation(const Output<Node>& left,
+                                                                const Output<Node>& right);
 
         /// \brief Generate a list of broadcast axes.
         ///
@@ -118,19 +122,32 @@ namespace ngraph
                 output_shape, input_shape, output_shape.size() - input_shape.size());
         }
 
-        inline std::shared_ptr<ngraph::Node>
-            make_broadcast_node(const std::shared_ptr<ngraph::Node>& node, ngraph::Shape new_shape)
+        inline Output<Node> make_broadcast_node(const Output<Node>& node, Shape new_shape)
         {
-            return std::make_shared<ngraph::op::Broadcast>(
+            return std::make_shared<op::Broadcast>(
+                node, new_shape, calculate_broadcast_axes(new_shape, node.get_shape()));
+        }
+        inline std::shared_ptr<Node> make_broadcast_node(const std::shared_ptr<Node>& node,
+                                                         Shape new_shape)
+        {
+            return std::make_shared<op::Broadcast>(
                 node, new_shape, calculate_broadcast_axes(new_shape, node->get_shape()));
         }
 
-        inline std::shared_ptr<ngraph::Node>
-            make_broadcast_node(const std::shared_ptr<ngraph::Node>& node,
-                                const ngraph::Shape& new_shape,
-                                std::size_t start_match_axis)
+        inline Output<Node> make_broadcast_node(const Output<Node>& node,
+                                                const Shape& new_shape,
+                                                std::size_t start_match_axis)
         {
-            return std::make_shared<ngraph::op::Broadcast>(
+            return std::make_shared<op::Broadcast>(
+                node,
+                new_shape,
+                calculate_broadcast_axes(new_shape, node.get_shape(), start_match_axis));
+        }
+        inline std::shared_ptr<Node> make_broadcast_node(const std::shared_ptr<Node>& node,
+                                                         const Shape& new_shape,
+                                                         std::size_t start_match_axis)
+        {
+            return std::make_shared<op::Broadcast>(
                 node,
                 new_shape,
                 calculate_broadcast_axes(new_shape, node->get_shape(), start_match_axis));

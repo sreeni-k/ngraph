@@ -34,14 +34,20 @@ namespace ngraph
         class DepthToSpace : public ngraph::op::util::FusedOp
         {
         public:
+            NGRAPH_API
+            static const std::string type_name;
+            const std::string& description() const override { return type_name; }
+            /// \brief Constructs a DepthToSpace operation.
+            DepthToSpace() = default;
             /// \brief Constructs a DepthToSpace operation.
             ///
             /// \param data - Node producing the input tensor
             /// \param block_size - the size of the block of values to be moved
-            DepthToSpace(const std::shared_ptr<ngraph::Node>& data, std::size_t block_size);
+            DepthToSpace(const Output<ngraph::Node>& data, std::size_t block_size);
 
             std::size_t get_block_size() const { return m_blocksize; }
-            virtual NodeVector decompose_op() const override;
+            void set_block_size(size_t blocksize) { m_blocksize = blocksize; }
+            virtual OutputVector decompose_op() const override;
 
             virtual std::shared_ptr<Node>
                 copy_with_new_args(const NodeVector& new_args) const override;

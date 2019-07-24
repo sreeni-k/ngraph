@@ -32,12 +32,17 @@ namespace ngraph
         class Gelu : public ngraph::op::util::FusedOp
         {
         public:
+            NGRAPH_API
+            static const std::string type_name;
+            const std::string& description() const override { return type_name; }
+            /// \brief Constructs an Gelu operation.
+            Gelu() = default;
             /// \brief Constructs an Gelu operation.
             ///
             /// \param data Input tensor
-            Gelu(const std::shared_ptr<ngraph::Node>& data);
+            Gelu(const Output<ngraph::Node>& data);
 
-            virtual NodeVector decompose_op() const override;
+            virtual OutputVector decompose_op() const override;
 
             void pre_validate_and_infer_types() override;
 

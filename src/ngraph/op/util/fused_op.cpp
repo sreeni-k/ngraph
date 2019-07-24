@@ -20,11 +20,6 @@
 
 using namespace ngraph;
 
-op::util::FusedOp::FusedOp()
-    : Op()
-{
-}
-
 op::util::FusedOp::FusedOp(const NodeVector& args)
     : Op(args)
 {

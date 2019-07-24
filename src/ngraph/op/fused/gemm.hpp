@@ -36,6 +36,11 @@ namespace ngraph
         class Gemm : public ngraph::op::util::FusedOp
         {
         public:
+            NGRAPH_API
+            static const std::string type_name;
+            const std::string& description() const override { return type_name; }
+            /// \brief Constructs an Gemm operation.
+            Gemm() = default;
             /// \brief Constructs an Gemm operation.
             ///
             /// \param A Input tensor A
@@ -45,23 +50,27 @@ namespace ngraph
             /// \param beta Scalar multiplier for input tensor C
             /// \param transA Whether A should be transposed
             /// \param transB Whether B should be transposed
-            Gemm(const std::shared_ptr<ngraph::Node>& A,
-                 const std::shared_ptr<ngraph::Node>& B,
-                 const std::shared_ptr<ngraph::Node>& C,
+            Gemm(const Output<Node>& A,
+                 const Output<Node>& B,
+                 const Output<Node>& C,
                  double alpha = 1.0,
                  double beta = 1.0,
                  bool transA = false,
                  bool transB = false);
 
-            virtual NodeVector decompose_op() const override;
+            virtual OutputVector decompose_op() const override;
 
             virtual std::shared_ptr<Node>
                 copy_with_new_args(const NodeVector& new_args) const override;
 
             double get_alpha() const { return m_alpha; }
+            void set_alpha(double alpha) { m_alpha = alpha; }
             double get_beta() const { return m_beta; }
+            void set_beta(double beta) { m_beta = beta; }
             bool get_transA() const { return m_transA; }
+            void set_transA(double transA) { m_transA = transA; }
             bool get_transB() const { return m_transB; }
+            void set_transB(double transB) { m_transB = transB; }
         private:
             double m_alpha;
             double m_beta;

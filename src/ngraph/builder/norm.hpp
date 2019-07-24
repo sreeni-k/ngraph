@@ -35,8 +35,12 @@ namespace ngraph
         ///
         /// \return     Node which calculates L-0 norm values.
         ///
+        Output<Node> l0_norm(const Output<Node>& node, const AxisSet& reduction_axes);
         std::shared_ptr<Node> l0_norm(const std::shared_ptr<Node>& node,
-                                      const AxisSet& reduction_axes);
+                                      const AxisSet& reduction_axes)
+        {
+            return l0_norm(Output<Node>(node), reduction_axes).get_node_shared_ptr();
+        }
 
         /// \brief      Creates node which calculates L-1 norm of input tensor.
         ///
@@ -48,9 +52,14 @@ namespace ngraph
         ///
         /// \return     Node which calculates L-1 norm values.
         ///
+        Output<Node>
+            l1_norm(const Output<Node>& node, const AxisSet& reduction_axes, float bias = 0.f);
         std::shared_ptr<Node> l1_norm(const std::shared_ptr<Node>& node,
                                       const AxisSet& reduction_axes,
-                                      float bias = 0.f);
+                                      float bias = 0.f)
+        {
+            return l1_norm(Output<Node>(node), reduction_axes, bias).get_node_shared_ptr();
+        }
 
         /// \brief      Calculates L-2 norm of input tensor.
         ///
@@ -63,9 +72,14 @@ namespace ngraph
         ///
         /// \return     Node which calculates L-2 norm values.
         ///
+        Output<Node>
+            l2_norm(const Output<Node>& node, const AxisSet& reduction_axes, float bias = 0.f);
         std::shared_ptr<Node> l2_norm(const std::shared_ptr<Node>& node,
                                       const AxisSet& reduction_axes,
-                                      float bias = 0.f);
+                                      float bias = 0.f)
+        {
+            return l2_norm(Output<Node>(node), reduction_axes, bias).get_node_shared_ptr();
+        }
 
         /// \brief      Creates node which calculates L-p norm on input tensor.
         ///
@@ -76,10 +90,17 @@ namespace ngraph
         ///
         /// \return     Node which calculates L-p norm.
         ///
+        Output<Node> lp_norm(const Output<Node>& node,
+                             const AxisSet& reduction_axes,
+                             std::size_t p_norm = 2,
+                             float bias = 0.f);
         std::shared_ptr<Node> lp_norm(const std::shared_ptr<Node>& node,
                                       const AxisSet& reduction_axes,
-                                      std::size_t p_norm = 2,
-                                      float bias = 0.f);
+                                      size_t p_norm = 2,
+                                      float bias = 0.f)
+        {
+            return lp_norm(Output<Node>(node), reduction_axes, p_norm, bias).get_node_shared_ptr();
+        }
 
     } // namespace builder
 

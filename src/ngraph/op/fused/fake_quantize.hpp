@@ -38,6 +38,11 @@ namespace ngraph
         class FakeQuantize : public ngraph::op::util::FusedOp
         {
         public:
+            NGRAPH_API
+            static const std::string type_name;
+            const std::string& description() const override { return type_name; }
+            /// \brief      Constructs a FakeQuantize operation node.
+            FakeQuantize() = default;
             ///
             /// \brief      Constructs a FakeQuantize operation node.
             ///
@@ -48,22 +53,23 @@ namespace ngraph
             /// \param[in]  output_high  The maximum quantized value.
             /// \param[in]  levels       The number of quantization levels.
             ///
-            FakeQuantize(const std::shared_ptr<ngraph::Node>& data,
-                         const std::shared_ptr<ngraph::Node>& input_low,
-                         const std::shared_ptr<ngraph::Node>& input_high,
-                         const std::shared_ptr<ngraph::Node>& output_low,
-                         const std::shared_ptr<ngraph::Node>& output_high,
-                         std::size_t levels);
+            FakeQuantize(const Output<ngraph::Node>& data,
+                         const Output<ngraph::Node>& input_low,
+                         const Output<ngraph::Node>& input_high,
+                         const Output<ngraph::Node>& output_low,
+                         const Output<ngraph::Node>& output_high,
+                         size_t levels);
 
-            virtual NodeVector decompose_op() const override;
+            virtual OutputVector decompose_op() const override;
             virtual void pre_validate_and_infer_types() override;
 
             virtual std::shared_ptr<Node>
                 copy_with_new_args(const NodeVector& new_args) const override;
 
-            std::size_t get_levels() const { return m_levels; }
+            size_t get_levels() const { return m_levels; }
+            void set_levels(size_t levels) { m_levels = levels; }
         private:
-            std::size_t m_levels;
+            size_t m_levels;
         };
     }
 }

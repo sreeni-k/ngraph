@@ -27,8 +27,10 @@
 using namespace std;
 using namespace ngraph;
 
-op::GRN::GRN(const shared_ptr<Node>& data, float bias)
-    : FusedOp("GRN", {data})
+const string op::GRN::type_name{"GRN"};
+
+op::GRN::GRN(const Output<Node>& data, float bias)
+    : FusedOp({data})
     , m_bias(bias)
 {
     constructor_validate_and_infer_types();
@@ -52,10 +54,10 @@ void op::GRN::pre_validate_and_infer_types()
     }
 }
 
-NodeVector op::GRN::decompose_op() const
+OutputVector op::GRN::decompose_op() const
 {
-    shared_ptr<Node> data{get_argument(0)};
-    const Shape& input_shape{data->get_shape()};
+    auto data = input(0).get_source_output();
+    const Shape& input_shape{data.get_shape()};
 
     // Reshape to 4D tensor.
     if (input_shape.size() != 4)
@@ -66,9 +68,9 @@ NodeVector op::GRN::decompose_op() const
     }
 
     // Calculate l2 norm across channels.
-    shared_ptr<Node> norm = builder::l2_norm(data, AxisSet{1}, m_bias);
+    Output<Node> norm = builder::l2_norm(data, AxisSet{1}, m_bias);
     // Get back reduced axis.
-    norm = std::make_shared<Broadcast>(norm, data->get_shape(), AxisSet{1});
+    norm = std::make_shared<Broadcast>(norm, data.get_shape(), AxisSet{1});
     data = data / norm;
 
     // get back original input tensor rank

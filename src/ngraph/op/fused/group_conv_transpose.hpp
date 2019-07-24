@@ -35,6 +35,9 @@ namespace ngraph
         class GroupConvolutionTranspose : public util::FusedOp
         {
         public:
+            NGRAPH_API
+            static const std::string type_name;
+            const std::string& description() const override { return type_name; }
             ///
             /// \brief      Constructs GroupConvolutionTranspose operation.
             ///
@@ -51,8 +54,8 @@ namespace ngraph
             /// \param[in]  output_shape    The output shape. When provided padding values are
             ///                             automatically inferred.
             ///
-            GroupConvolutionTranspose(const std::shared_ptr<Node>& data,
-                                      const std::shared_ptr<Node>& filters,
+            GroupConvolutionTranspose(const Output<Node>& data,
+                                      const Output<Node>& filters,
                                       const Strides& strides,
                                       const Strides& dilations,
                                       const CoordinateDiff& padding_begin,
@@ -70,8 +73,8 @@ namespace ngraph
             /// \param[in]  groups    The number of groups the input channels and output channels
             ///                       are divided into.
             ///
-            GroupConvolutionTranspose(const std::shared_ptr<Node>& data,
-                                      const std::shared_ptr<Node>& filters,
+            GroupConvolutionTranspose(const Output<Node>& data,
+                                      const Output<Node>& filters,
                                       const std::size_t groups = 1UL);
 
             ///
@@ -87,8 +90,8 @@ namespace ngraph
             /// \param[in]  groups          The number of groups the input channels and output channels
             ///                             are divided into.
             ///
-            GroupConvolutionTranspose(const std::shared_ptr<Node>& data,
-                                      const std::shared_ptr<Node>& filters,
+            GroupConvolutionTranspose(const Output<Node>& data,
+                                      const Output<Node>& filters,
                                       const Strides& strides,
                                       const Strides& dilations,
                                       const CoordinateDiff& output_padding,
@@ -105,13 +108,13 @@ namespace ngraph
             /// \param[in]  groups          The number of groups the input channels and output channels
             ///                             are divided into.
             ///
-            GroupConvolutionTranspose(const std::shared_ptr<Node>& data,
-                                      const std::shared_ptr<Node>& filters,
+            GroupConvolutionTranspose(const Output<Node>& data,
+                                      const Output<Node>& filters,
                                       const Shape& output_shape,
                                       const std::size_t groups = 1UL);
 
-            std::shared_ptr<Node> get_data() { return get_argument(0); }
-            std::shared_ptr<Node> get_filters() { return get_argument(1); }
+            Output<Node> get_data() { return input(0).get_source_output(); }
+            Output<Node> get_filters() { return input(1).get_source_output(); }
             const Strides& get_strides() const { return m_strides; }
             const Strides& get_dilations() const { return m_dilations; }
             const CoordinateDiff& get_padding_begin() const { return m_padding_begin; }
@@ -122,7 +125,7 @@ namespace ngraph
             const Shape& get_output_shape() const { return m_output_shape; }
             virtual void pre_validate_and_infer_types() override;
             virtual void post_validate_and_infer_types() override;
-            virtual NodeVector decompose_op() const override;
+            virtual OutputVector decompose_op() const override;
 
             virtual std::shared_ptr<Node>
                 copy_with_new_args(const NodeVector& new_args) const override;
