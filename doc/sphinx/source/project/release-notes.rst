@@ -17,7 +17,6 @@ We are pleased to announce the release of version |version|-doc.
 Core updates for |version|
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. Better PlaidML support
 + More ONNX ops
 + Elementwise divide defaults to Python semantics
 + GenerateMask seed optional
@@ -40,7 +39,6 @@ Changelog on Previous Releases
 0.23
 ----
 
-+ PlaidML support
 + More ONNX ops
 + Elementwise divide defaults to Python semantics
 + GenerateMask seed optional

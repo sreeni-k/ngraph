@@ -1,6 +1,5 @@
 :orphan:
 
-
 * Release Notes
 
   .. toctree::
@@ -74,4 +73,4 @@
      project/extras/index.rst
      glossary.rst
 
-     
+

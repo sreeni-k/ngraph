@@ -69,7 +69,7 @@ graph, but the choice of operations in the graph may not be optimal.
 .. _figure-A:
 
 .. figure:: ../graphics/kernel-problem-1.png
-   :width: 555px
+   :width: 100%
    :alt:
 
 
@@ -95,7 +95,7 @@ diagram.
 .. _figure-B:
 
 .. figure:: ../graphics/kernel-problem-2.png
-   :width: 555px
+   :width: 100%
    :alt:
 
 Each framework must be manually integrated with each hardware-specific kernel
@@ -130,7 +130,7 @@ work for what will ultimately be a fragile setup that is costly to maintain.
 .. _figure-C:
 
 .. figure:: ../graphics/kernel-problem-3.png
-   :width: 555px
+   :width: 100%
    :alt:
 
 
