@@ -43,23 +43,26 @@ packages, scripts, and other files that use licensing.
 
 .. _intro:
 
-Introduction
-============
-
-.. toctree::
-   :maxdepth: 1
-   :glob:
-
-   project/introduction.rst
-
-
 Getting Started
 ===============
 
 .. toctree::
    :maxdepth: 1
+   :glob:
+
+   introduction.rst
+   buildlb.rst
+   tutorials/index.rst
+
+Framework Support
+=================
+
+.. toctree::
+   :maxdepth: 1
    
-   frameworks/index.rst
+   frameworks/overview.rst
+   frameworks/tensorflow.rst
+   
    frameworks/validated/list.rst
    frameworks/generic-configs.rst
 
