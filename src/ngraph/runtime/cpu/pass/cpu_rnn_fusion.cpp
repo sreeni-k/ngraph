@@ -115,17 +115,16 @@ void ngraph::runtime::cpu::pass::LSTMFusion::construct_onnx_lstmcell_fprop()
         size_t hidden_size = lstm->get_hidden_size();
 
         auto get_weights_ifco_gate_order =
-            [&](std::shared_ptr<pattern::op::Label> node_label) -> std::shared_ptr<Node> {
+            [&](std::shared_ptr<Node> weights_graph_node) -> std::shared_ptr<Node> {
             // slices will be in ICFO order
             std::vector<std::shared_ptr<Node>> gate_slices;
-            auto weights_graph_node = pattern_map[node_label];
 
+            size_t dim0 = weights_graph_node->get_shape()[0] / 4;
+            size_t dim1 = weights_graph_node->get_shape()[1];
             for (size_t i = 0; i < 4; i++)
             {
                 auto slice = std::make_shared<ngraph::op::Slice>(
-                    weights_graph_node,
-                    Coordinate{i * hidden_size, 0},
-                    Coordinate{(i + 1) * hidden_size, hidden_size});
+                    weights_graph_node, Coordinate{i * dim0, 0}, Coordinate{(i + 1) * dim0, dim1});
                 std::cout << "lower_bounds: " << slice->get_lower_bounds()
                           << "upper_bounds: " << slice->get_upper_bounds() << std::endl;
                 gate_slices.push_back(slice);
@@ -136,11 +135,18 @@ void ngraph::runtime::cpu::pass::LSTMFusion::construct_onnx_lstmcell_fprop()
             return weights_ifco;
         };
 
-        auto W_ifco = get_weights_ifco_gate_order(W);
-        auto R_ifco = get_weights_ifco_gate_order(R);
+        auto W_ldigo = pattern_map[W];
+        auto R_ldigo = pattern_map[R];
+        auto W_ifco = get_weights_ifco_gate_order(W_ldigo);
+        auto R_ifco = get_weights_ifco_gate_order(R_ldigo);
+
+        auto W_reshape = std::make_shared<op::Reshape>(
+            W_ifco, AxisVector{0, 1}, Shape{W_ldigo->get_shape()[1], W_ldigo->get_shape()[0]});
+        auto R_reshape = std::make_shared<op::Reshape>(
+            R_ifco, AxisVector{0, 1}, Shape{R_ldigo->get_shape()[1], R_ldigo->get_shape()[0]});
 
         auto lstm_node = std::make_shared<ngraph::op::Lstm>(
-            pattern_map[X], src_iter, W_ifco, R_ifco, bias, rnn_type);
+            pattern_map[X], src_iter, W_reshape, R_reshape, bias, rnn_type);
 
         auto lstm_ht_output = std::make_shared<ngraph::op::GetOutputElement>(lstm_node, 0);
         auto lstm_ht_ct_output = std::make_shared<ngraph::op::GetOutputElement>(lstm_node, 1);
