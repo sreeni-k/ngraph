@@ -23,6 +23,7 @@ Core updates for |version|
 + Graph visualization improvements
 + Preserve control dependencies in more places
 + GetOutputElement has single input
++ Fixes reshape sink/swim issue
 
 
 .. Latest doc updates
