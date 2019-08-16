@@ -35,6 +35,8 @@ namespace ngraph
                                        float mean = MSE_DEFAULT_MEAN,
                                        float variance = MSE_DEFAULT_VARIANCE)
         {
+            NGRAPH_CHECK(actual.size() == expected.size(),
+                         "mse requires that actual and expected sizes match");
         }
     }
 }

@@ -18,6 +18,7 @@
 #include "ngraph/ngraph.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
+#include "util/mean_squared_error.hpp"
 #include "util/ndarray.hpp"
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
