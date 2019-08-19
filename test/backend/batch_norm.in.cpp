@@ -504,7 +504,7 @@ NGRAPH_TEST(${BACKEND_NAME}, batch_norm_inference_parameters_duplication)
     auto handle = backend->compile(f);
     handle->call_with_validate({bn_output}, {_input, _mvgb, _mvgb, _mvgb, _mvgb});
 
-    ASSERT_TRUE(
+    EXPECT_TRUE(
         ngraph::test::all_close(expected_result, read_vector<float>(bn_output), 1e-3f, 1e-4f));
 }
 
@@ -770,12 +770,12 @@ NGRAPH_TEST(${BACKEND_NAME}, batch_norm_bprop_n4c3h2w2)
         3.83005061e-06f,  5.85143729e-06f,  4.17875243e-06f,  -8.64167783e-06f, 1.00170803e-05f,
         -4.23939666e-06f, 4.80201680e-06f,  4.62702078e-06f};
 
-    ASSERT_TRUE(ngraph::test::all_close(read_vector<float>(_dinput), expected_input, 1e-3f, 1e-4f));
+    EXPECT_TRUE(ngraph::test::all_close(read_vector<float>(_dinput), expected_input, 1e-3f, 1e-4f));
     vector<float> expected_dgamma{7.06315041e-05f, -2.35289335e-04f, -5.06639481e-05f};
-    ASSERT_TRUE(
+    EXPECT_TRUE(
         ngraph::test::all_close(read_vector<float>(_dgamma), expected_dgamma, 1e-2f, 1e-3f));
     vector<float> expected_dbeta{320.f, 320.f, 320.f};
-    ASSERT_TRUE(ngraph::test::all_close(read_vector<float>(_dbeta), expected_dbeta, 1e-4f, 1e-8f));
+    EXPECT_TRUE(ngraph::test::all_close(read_vector<float>(_dbeta), expected_dbeta, 1e-4f, 1e-8f));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, batch_norm_fprop_inference_b2c2h2w1)
@@ -823,6 +823,6 @@ NGRAPH_TEST(${BACKEND_NAME}, batch_norm_fprop_inference_b2c2h2w1)
     auto handle = backend->compile(f);
     handle->call_with_validate({bn_output}, {_input, _gamma, _beta, _mean, _var});
 
-    ASSERT_TRUE(
+    EXPECT_TRUE(
         ngraph::test::all_close(expected_result, read_vector<float>(bn_output), 1e-3f, 1e-4f));
 }
