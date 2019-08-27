@@ -47,10 +47,16 @@ execute_process(COMMAND "${CMAKE_COMMAND}" --build . --target ext_mlir_llvm
 execute_process(COMMAND "${CMAKE_COMMAND}" --build . --target ext_mlir
                 WORKING_DIRECTORY "${MLIR_PROJECT_ROOT}")
 
+# Enable LLVM modules
+set(LLVM_CMAKE_PATH "${MLIR_BUILD_DIR}/lib/cmake/llvm"
+    CACHE PATH "Path to LLVM cmake modules")
+list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_PATH}")
+
+include(AddLLVM)
+
 # point find_package to the pre-built libs
 set(LLVM_DIR ${MLIR_LLVM_ROOT}/build/lib/cmake/llvm)
 
 set(MLIR_SRC_INCLUDE_PATH ${MLIR_SOURCE_DIR}/include)
 set(MLIR_BIN_INCLUDE_PATH ${MLIR_BUILD_DIR}/projects/mlir/include)
 set(MLIR_INCLUDE_PATHS  ${MLIR_SRC_INCLUDE_PATH};${MLIR_BIN_INCLUDE_PATH})
-

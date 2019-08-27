@@ -19,7 +19,7 @@ from lit.llvm import llvm_config
 from lit.llvm.subst import ToolSubst
 
 # name: The name of this test suite.
-config.name = 'NGRAPH MLIR Compiler'
+config.name = 'nGraph MLIR Compiler'
 
 config.test_format = lit.formats.ShTest(not llvm_config.use_lit_shell)
 
@@ -38,7 +38,7 @@ tool_dirs = [
     config.mlir_tools_dir, config.llvm_tools_dir
 ]
 tool_names = [
-    'mlir-opt', 'mlir-translate'
+    'ngraph-opt', 'mlir-opt', 'mlir-translate'
 ]
 tools = [ToolSubst(s, unresolved='ignore') for s in tool_names]
 llvm_config.add_tool_substitutions(tools, tool_dirs)
