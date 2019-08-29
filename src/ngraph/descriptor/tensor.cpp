@@ -100,16 +100,15 @@ void descriptor::Tensor::set_tensor_layout(
     const std::shared_ptr<layout::TensorLayout>& tensor_layout)
 {
     NGRAPH_CHECK(tensor_layout->get_shape() == get_shape(),
-		 "Setting tensor's layout %s to a layout with a different shape %s",
-		 get_shape(), tensor_layout->get_shape());
-    if (tensor_layout->get_shape() != get_shape())
-    {
-        throw ngraph_error("Setting tensor's layout to a layout with a different shape.");
-    }
-    if (tensor_layout->get_element_type() != get_element_type())
-    {
-        throw ngraph_error("Setting tensor's layout to a layout with a different element type.");
-    }
+                 "Setting tensor's layout to a layout with a different shape : ",
+                 get_shape(),
+                 " -> ",
+                 tensor_layout->get_shape());
+    NGRAPH_CHECK(tensor_layout->get_element_type() == get_element_type(),
+                 "Setting tensor's layout to a layout with a different element type : ",
+                 get_element_type(),
+                 " -> ",
+                 tensor_layout->get_element_type());
     m_tensor_layout = tensor_layout;
 }
 
