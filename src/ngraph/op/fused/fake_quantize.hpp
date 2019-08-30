@@ -59,7 +59,7 @@ namespace ngraph
                          const Output<Node>& input_high,
                          const Output<Node>& output_low,
                          const Output<Node>& output_high,
-                         std::size_t levels);
+                         int levels);
 
             virtual NodeVector decompose_op() const override;
             virtual void pre_validate_and_infer_types() override;
@@ -67,9 +67,9 @@ namespace ngraph
             virtual std::shared_ptr<Node>
                 copy_with_new_args(const NodeVector& new_args) const override;
 
-            std::size_t get_levels() const { return m_levels; }
+            int get_levels() const { return m_levels; }
         private:
-            std::size_t m_levels;
+            int m_levels;
         };
     }
 }
