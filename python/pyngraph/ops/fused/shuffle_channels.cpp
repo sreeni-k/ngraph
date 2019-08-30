@@ -29,5 +29,5 @@ void regclass_pyngraph_op_ShuffleChannels(py::module m)
                ngraph::op::Op>
         shufflechannels(m, "ShuffleChannels");
     shufflechannels.doc() = "ngraph.impl.op.ShuffleChannels wraps ngraph::op::ShuffleChannels";
-    shufflechannels.def(py::init<const std::shared_ptr<ngraph::Node>&, size_t&, size_t&>());
+    shufflechannels.def(py::init<const std::shared_ptr<ngraph::Node>&, int&, int&>());
 }
