@@ -43,7 +43,7 @@ op::FakeQuantize::FakeQuantize(const Output<Node>& data,
                                const Output<Node>& input_high,
                                const Output<Node>& output_low,
                                const Output<Node>& output_high,
-                               size_t levels)
+                               int levels)
     : FusedOp({data, input_low, input_high, output_low, output_high})
     , m_levels(levels)
 {
