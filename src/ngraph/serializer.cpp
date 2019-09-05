@@ -146,6 +146,7 @@
 #include "ngraph/op/tan.hpp"
 #include "ngraph/op/tanh.hpp"
 #include "ngraph/op/topk.hpp"
+#include "ngraph/op/unhandled.hpp"
 #include "ngraph/op/xor.hpp"
 #include "ngraph/provenance.hpp"
 #include "ngraph/serializer.hpp"
@@ -1926,11 +1927,7 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             node = make_shared<op::Xor>(args[0], args[1], read_auto_broadcast(node_js, "autob"));
             break;
         }
-        case OP_TYPEID::UnknownOp:
-        {
-            stringstream ss;
-            ss << "unsupported op " << node_op;
-            throw runtime_error(ss.str());
+        case OP_TYPEID::UnknownOp: { node = make_shared<op::Unhandled>(node_op);
         }
         }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)

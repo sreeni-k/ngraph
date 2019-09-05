@@ -25,6 +25,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/get_output_element.hpp"
 #include "ngraph/op/passthrough.hpp"
+#include "ngraph/op/unhandled.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/serializer.hpp"
@@ -339,4 +340,15 @@ TEST(serialize, non_zero_node_output)
     auto topk_out = g_abs->input(0).get_source_output();
     EXPECT_EQ(topk_out.get_index(), 1);
     EXPECT_EQ(topk_out.get_node()->description(), "TopK");
+}
+
+TEST(serialize, unhandled_op)
+{
+    auto arg = make_shared<op::Parameter>(element::f32, Shape{10});
+    auto ne = make_shared<op::Unhandled>("NonExistent");
+    ne->set_argument(0, arg);
+    auto result = make_shared<op::Result>(ne);
+    auto f = make_shared<Function>(ResultVector{result}, ParameterVector{arg});
+    string s = serialize(f);
+    shared_ptr<Function> g = deserialize(s);
 }

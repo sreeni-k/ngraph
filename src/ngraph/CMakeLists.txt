@@ -356,6 +356,8 @@ set (SRC
     op/fused/squeeze.hpp
     op/fused/unsqueeze.cpp
     op/fused/unsqueeze.hpp
+    op/unhandled.cpp
+    op/unhandled.hpp
     op/util/activation_functions.cpp
     op/util/activation_functions.hpp
     op/util/arithmetic_reduction.cpp
