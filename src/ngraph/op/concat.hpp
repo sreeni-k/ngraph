@@ -38,11 +38,16 @@ namespace ngraph
             /// \param args               The outputs producing the input tensors.
             /// \param concatenation_axis The axis along which to concatenate the input tensors.
             Concat(const OutputVector& args, size_t concatenation_axis);
-
+            /// \brief Constructs a concatenation operation.
+            ///
+            /// \param args               The outputs producing the input tensors.
+            /// \param concatenation_axis The axis along which to concatenate the input tensors.
+            Concat(const OutputVector& args, const Output<Node>& concatenation_axis);
             /// \brief Constructs a concatenation operation.
             ///
             /// \param args               The nodes producing the input tensors.
-            /// \param concatenation_axis The axis along which to concatenate the input tensors.
+            /// \param concatenation_axis The output producing the axis along which to concatenate
+            /// the input tensors.
             Concat(const NodeVector& args, size_t concatenation_axis);
 
             void validate_and_infer_types() override;
@@ -51,16 +56,13 @@ namespace ngraph
                 copy_with_new_args(const NodeVector& new_args) const override;
 
             /// \return The concatenation axis.
-            size_t get_concatenation_axis() const { return m_concatenation_axis; }
-            void set_concatenation_axis(size_t concatenation_axis)
-            {
-                m_concatenation_axis = concatenation_axis;
-            }
+            size_t get_concatenation_axis() const;
+            Dimension get_concatenation_axis_dynamic() const;
+            void set_concatenation_axis(size_t concatenation_axis);
 
         protected:
             virtual void generate_adjoints(autodiff::Adjoints& adjoints,
                                            const NodeVector& deltas) override;
-            size_t m_concatenation_axis;
         };
     }
 }

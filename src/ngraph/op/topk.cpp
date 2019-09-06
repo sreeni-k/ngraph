@@ -180,7 +180,7 @@ void op::TopK::validate_and_infer_types()
             // If top_k_axis is not static and k is not 0, then we could be changing any
             // dimension. So we have to change all dimensions to dynamic.
             output_shape = PartialShape::dynamic(input_rank);
-        }        
+        }
     }
 
     set_input_is_relevant_to_shape(2);
