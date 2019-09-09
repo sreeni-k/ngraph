@@ -107,6 +107,7 @@ void op::v0::Softmax::validate_and_infer_types()
         {
             m_axes.insert(i);
         }
+        set_axes(m_axes);
     }
 }
 
