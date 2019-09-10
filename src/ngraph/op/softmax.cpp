@@ -32,18 +32,14 @@ using namespace ngraph;
 // *** SOFTMAX OP SET 0 ***
 const string op::Softmax::type_name{"Softmax"};
 
-std::shared_ptr<op::Constant> AxisSetToConstant(const AxisSet& axes)
+std::shared_ptr<op::Constant> axisset2constant(const AxisSet& axes)
 {
-    vector<int64_t> v;
-    for (auto axis : axes)
-    {
-        v.push_back(axis);
-    }
-    return op::Constant::create(element::i64, Shape{axes.size()}, v);
+    vector<int64_t> v = axes.to_vector();
+    return op::Constant::create(element::i64, Shape{v.size()}, v);
 }
 
 op::v0::Softmax::Softmax(const Output<Node>& arg, const AxisSet& axes)
-    : Op({arg, AxisSetToConstant(axes)->output(0)})
+    : Op({arg, axisset2constant(axes)->output(0)})
 {
     constructor_validate_and_infer_types();
 }
@@ -56,6 +52,7 @@ op::v0::Softmax::Softmax(const Output<Node>& arg, const Output<Node>& axes)
 
 AxisSet op::v0::Softmax::get_axes() const
 {
+    AxisSet axiset;
     auto const_op = dynamic_pointer_cast<op::Constant>(input_value(1).get_node_shared_ptr());
     if (const_op)
     {
@@ -63,34 +60,24 @@ AxisSet op::v0::Softmax::get_axes() const
     }
     else
     {
-        ngraph_error("get_axes called on a Softmax node whose 'axes' input is not constant");
+        throw ngraph_error("get_axes called on a Softmax node whose 'axes' input is not constant");
     }
+    return axiset;
 }
 
 void op::v0::Softmax::set_axes(const AxisSet& axes)
 {
-    this->input(1).replace_source_output(AxisSetToConstant(axes)->output(0));
+    this->input(1).replace_source_output(axisset2constant(axes)->output(0));
 }
 
 void op::v0::Softmax::validate_and_infer_types()
 {
     const PartialShape& input_shape = get_input_partial_shape(0);
-    auto m_axes = get_axes();
     NODE_VALIDATION_CHECK(this,
                           input_shape.rank().is_static(),
                           "Input node rank must be static (input_shape=",
                           input_shape,
                           ").");
-    for (auto axis : m_axes)
-    {
-        NODE_VALIDATION_CHECK(this,
-                              axis >= 0 && axis < static_cast<size_t>(input_shape.rank()),
-                              "Reduction axis (",
-                              axis,
-                              ") is out of bounds (argument shape: ",
-                              input_shape,
-                              ").");
-    }
     if (input_shape.is_static())
     {
         set_output_type(0, get_input_element_type(0), input_shape.to_shape());
@@ -100,22 +87,36 @@ void op::v0::Softmax::validate_and_infer_types()
         set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
     }
 
-    // empty axes == all axes
-    if (m_axes.size() == 0)
+    bool is_axis_constant = input_value(1).get_node_shared_ptr()->is_constant();
+    if (is_axis_constant)
     {
-        for (size_t i = 0; i < get_shape().size(); ++i)
+        auto m_axes = get_axes();
+        for (auto axis : m_axes)
         {
-            m_axes.insert(i);
+            NODE_VALIDATION_CHECK(this,
+                                  axis >= 0 && axis < static_cast<size_t>(input_shape.rank()),
+                                  "Reduction axis (",
+                                  axis,
+                                  ") is out of bounds (argument shape: ",
+                                  input_shape,
+                                  ").");
         }
-        set_axes(m_axes);
+        // empty axes == all axes
+        if (m_axes.size() == 0)
+        {
+            for (size_t i = 0; i < get_shape().size(); ++i)
+            {
+                m_axes.insert(i);
+            }
+            set_axes(m_axes);
+        }
     }
 }
 
 shared_ptr<Node> op::v0::Softmax::copy_with_new_args(const NodeVector& new_args) const
 {
     check_new_args_count(this, new_args);
-    auto m_axes = get_axes();
-    return make_shared<Softmax>(new_args.at(0), m_axes);
+    return make_shared<Softmax>(new_args.at(0), new_args.at(1));
 }
 
 void op::v0::Softmax::generate_adjoints(autodiff::Adjoints& adjoints, const NodeVector& deltas)
