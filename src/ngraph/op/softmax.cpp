@@ -19,6 +19,7 @@
 #include <algorithm>
 
 #include "ngraph/builder/autobroadcast.hpp"
+#include "ngraph/op/constant.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/subtract.hpp"
@@ -31,13 +32,50 @@ using namespace ngraph;
 // *** SOFTMAX OP SET 0 ***
 const string op::Softmax::type_name{"Softmax"};
 
+std::shared_ptr<op::Constant> AxisSetToConstant(const AxisSet& axes)
+{
+    vector<int64_t> v;
+    for (auto axis : axes)
+    {
+        v.push_back(axis);
+    }
+    return op::Constant::create(element::i64, Shape{axes.size()}, v);
+}
+
 op::v0::Softmax::Softmax(const Output<Node>& arg, const AxisSet& axes)
-    : Op({arg})
-    , m_axes(axes)
+    : Op({arg, AxisSetToConstant(axes)->output(0)})
 {
     constructor_validate_and_infer_types();
+}
 
+op::v0::Softmax::Softmax(const Output<Node>& arg, const Output<Node>& axes)
+    : Op({arg, axes})
+{
+    constructor_validate_and_infer_types();
+}
+
+AxisSet op::v0::Softmax::get_axes() const
+{
+    auto const_op = dynamic_pointer_cast<op::Constant>(input_value(1).get_node_shared_ptr());
+    if (const_op)
+    {
+        return AxisSet(const_op->get_vector<size_t>());
+    }
+    else
+    {
+        ngraph_error("get_axes called on a Softmax node whose 'axes' input is not constant");
+    }
+}
+
+void op::v0::Softmax::set_axes(const AxisSet& axes)
+{
+    this->input(1).replace_source_output(AxisSetToConstant(axes)->output(0));
+}
+
+void op::v0::Softmax::validate_and_infer_types()
+{
     const PartialShape& input_shape = get_input_partial_shape(0);
+    auto m_axes = get_axes();
     NODE_VALIDATION_CHECK(this,
                           input_shape.rank().is_static(),
                           "Input node rank must be static (input_shape=",
@@ -69,18 +107,21 @@ op::v0::Softmax::Softmax(const Output<Node>& arg, const AxisSet& axes)
         {
             m_axes.insert(i);
         }
+        set_axes(m_axes);
     }
 }
 
 shared_ptr<Node> op::v0::Softmax::copy_with_new_args(const NodeVector& new_args) const
 {
     check_new_args_count(this, new_args);
+    auto m_axes = get_axes();
     return make_shared<Softmax>(new_args.at(0), m_axes);
 }
 
 void op::v0::Softmax::generate_adjoints(autodiff::Adjoints& adjoints, const NodeVector& deltas)
 {
     auto delta = deltas.at(0);
+    auto m_axes = get_axes();
 
     auto z = delta * shared_from_this();
     auto zsum = make_shared<op::Sum>(z, m_axes);
