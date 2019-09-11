@@ -14,6 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include <csignal>
 #include "ngraph/op/softmax.hpp"
 
 #include <algorithm>
@@ -57,8 +58,9 @@ const AxisSet op::v0::Softmax::get_axes() const
     }
     else
     {
-        // throw ngraph_error("get_axes called on a Softmax node whose 'axes' input is not
-        // constant");
+// Generate an interrupt
+std::raise(SIGINT);
+        throw ngraph_error("get_axes called on a Softmax node whose 'axes' input is not constant");
     }
     return axes;
 }
@@ -111,6 +113,7 @@ void op::v0::Softmax::validate_and_infer_types()
             }
         }
     }
+    set_input_is_relevant_to_shape(1);
 }
 
 shared_ptr<Node> op::v0::Softmax::copy_with_new_args(const NodeVector& new_args) const
