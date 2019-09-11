@@ -32,14 +32,10 @@ using namespace ngraph;
 // *** SOFTMAX OP SET 0 ***
 const string op::Softmax::type_name{"Softmax"};
 
-std::shared_ptr<op::Constant> axisset2constant(const AxisSet& axes)
-{
-    vector<int64_t> v = axes.to_vector();
-    return op::Constant::create(element::i64, Shape{v.size()}, v);
-}
-
 op::v0::Softmax::Softmax(const Output<Node>& arg, const AxisSet& axes)
-    : Op({arg, axisset2constant(axes)->output(0)})
+    : Op({arg,
+          op::Constant::create(element::i64, Shape{axes.to_vector().size()}, axes.to_vector())
+              ->output(0)})
 {
     constructor_validate_and_infer_types();
 }
@@ -50,24 +46,27 @@ op::v0::Softmax::Softmax(const Output<Node>& arg, const Output<Node>& axes)
     constructor_validate_and_infer_types();
 }
 
-AxisSet op::v0::Softmax::get_axes() const
+const AxisSet op::v0::Softmax::get_axes() const
 {
-    AxisSet axiset;
+    AxisSet axes;
     auto const_op = dynamic_pointer_cast<op::Constant>(input_value(1).get_node_shared_ptr());
     if (const_op)
     {
-        return AxisSet(const_op->get_vector<size_t>());
+        axes = const_op->get_axis_set_val();
+        ;
     }
     else
     {
         throw ngraph_error("get_axes called on a Softmax node whose 'axes' input is not constant");
     }
-    return axiset;
+    return axes;
 }
 
 void op::v0::Softmax::set_axes(const AxisSet& axes)
 {
-    this->input(1).replace_source_output(axisset2constant(axes)->output(0));
+    this->input(1).replace_source_output(
+        op::Constant::create(element::i64, Shape{axes.to_vector().size()}, axes.to_vector())
+            ->output(0));
 }
 
 void op::v0::Softmax::validate_and_infer_types()
