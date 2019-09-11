@@ -57,7 +57,8 @@ const AxisSet op::v0::Softmax::get_axes() const
     }
     else
     {
-        throw ngraph_error("get_axes called on a Softmax node whose 'axes' input is not constant");
+        // throw ngraph_error("get_axes called on a Softmax node whose 'axes' input is not
+        // constant");
     }
     return axes;
 }
@@ -77,37 +78,37 @@ void op::v0::Softmax::validate_and_infer_types()
                           "Input node rank must be static (input_shape=",
                           input_shape,
                           ").");
-    if (input_shape.is_static())
+    if (input_shape.is_dynamic())
     {
-        set_output_type(0, get_input_element_type(0), input_shape.to_shape());
+        set_output_type(0, get_input_element_type(0), input_shape);
     }
     else
     {
-        set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
-    }
+        set_output_type(0, get_input_element_type(0), input_shape.to_shape());
 
-    bool is_axis_constant = input_value(1).get_node_shared_ptr()->is_constant();
-    if (is_axis_constant)
-    {
-        auto m_axes = get_axes();
-        for (auto axis : m_axes)
+        bool is_axis_constant = input_value(1).get_node_shared_ptr()->is_constant();
+        if (is_axis_constant)
         {
-            NODE_VALIDATION_CHECK(this,
-                                  axis >= 0 && axis < static_cast<size_t>(input_shape.rank()),
-                                  "Reduction axis (",
-                                  axis,
-                                  ") is out of bounds (argument shape: ",
-                                  input_shape,
-                                  ").");
-        }
-        // empty axes == all axes
-        if (m_axes.size() == 0)
-        {
-            for (size_t i = 0; i < get_shape().size(); ++i)
+            auto m_axes = get_axes();
+            for (auto axis : m_axes)
             {
-                m_axes.insert(i);
+                NODE_VALIDATION_CHECK(this,
+                                      axis >= 0 && axis < static_cast<size_t>(input_shape.rank()),
+                                      "Reduction axis (",
+                                      axis,
+                                      ") is out of bounds (argument shape: ",
+                                      input_shape,
+                                      ").");
             }
-            set_axes(m_axes);
+            // empty axes == all axes
+            if (m_axes.size() == 0)
+            {
+                for (size_t i = 0; i < get_shape().size(); ++i)
+                {
+                    m_axes.insert(i);
+                }
+                set_axes(m_axes);
+            }
         }
     }
 }
