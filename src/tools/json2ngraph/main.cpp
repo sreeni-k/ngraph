@@ -78,7 +78,7 @@ OPTIONS
     }
 
     ifstream in(input);
-    if(in)
+    if (in)
     {
         json2ngraph(in, cout);
     }
