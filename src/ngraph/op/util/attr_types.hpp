@@ -17,6 +17,7 @@
 #pragma once
 
 #include <cstddef>
+#include <iostream>
 
 namespace ngraph
 {
@@ -112,5 +113,16 @@ namespace ngraph
             AutoBroadcastType m_type; // Implicit broadcasting algorithm
             size_t m_axis;            // Axis to start alignment on
         };
+
+        inline std::ostream& operator<<(std::ostream& out, const PadType& pt)
+        {
+            switch(pt)
+            {
+            case PadType::EXPLICIT: out << "EXPLICIT"; break;
+            case PadType::SAME_LOWER: out << "SAME_LOWER"; break;
+            case PadType::SAME_UPPER: out << "SAME_UPPER"; break;
+            case PadType::VALID: out << "VALID"; break;
+            }
+        }
     }
 }

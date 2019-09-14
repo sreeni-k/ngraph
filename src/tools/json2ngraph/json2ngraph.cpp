@@ -20,6 +20,15 @@
 using namespace std;
 using namespace ngraph;
 
+void test()
+{
+}
+
+
+
+
+
+
 static string to_variable(const Node& n)
 {
     return to_lower(n.get_name());
@@ -71,8 +80,16 @@ void json2ngraph(istream& in, ostream& out)
             writer << "auto " << to_variable(*op) << " = make_shared<op::Constant>(element::"
                    << op->get_element_type().get_type_name() << ", "
                    << shape_names[op->get_output_shape(0)] << ", vector<"
-                   << op->get_element_type().c_type_string() << ">{"
-                   << join(constant->get_value_strings()) << "});\n";
+                   << op->get_element_type().c_type_string() << ">{";
+            if (constant->are_all_data_elements_bitwise_identical())
+            {
+                writer << constant->convert_value_to_string(0);
+            }
+            else
+            {
+                writer << join(constant->get_value_strings());
+            }
+                writer << "});\n";
         }
     }
     writer << "\n";
@@ -91,21 +108,90 @@ void json2ngraph(istream& in, ostream& out)
                 input_strs.push_back(to_variable(*n));
             }
             writer << join(input_strs);
-            if (dynamic_pointer_cast<op::util::BinaryElementwiseArithmetic>(op))
+            if (dynamic_pointer_cast<op::util::BinaryElementwiseArithmetic>(op) ||
+                dynamic_pointer_cast<op::util::BinaryElementwiseComparison>(op) ||
+                dynamic_pointer_cast<op::util::BinaryElementwiseLogical>(op))
             {
+            }
+            else if (dynamic_pointer_cast<op::util::UnaryElementwiseArithmetic>(op))
+            {
+            }
+            else if (auto cop = dynamic_pointer_cast<op::util::ArithmeticReduction>(op))
+            {
+                if (op->inputs().size() == 1)
+                {
+                    writer << ", AxisSet{" << join(cop->get_reduction_axes()) << "}";
+                }
             }
             else if (auto broadcast = dynamic_pointer_cast<op::Broadcast>(op))
             {
-                writer << ", Shape{" << join(broadcast->get_broadcast_shape()) << "}, ";
-                writer << "AxisSet{" << join(broadcast->get_broadcast_axes()) << "}";
+                writer << ", Shape{" << join(broadcast->get_broadcast_shape()) << "}";
+                writer << ", AxisSet{" << join(broadcast->get_broadcast_axes()) << "}";
             }
             else if (auto reshape = dynamic_pointer_cast<op::Reshape>(op))
             {
-                writer << ", AxisVector{" << join(reshape->get_input_order()) << "}, ";
-                writer << "Shape{" << join(reshape->get_output_shape()) << "}";
+                writer << ", AxisVector{" << join(reshape->get_input_order()) << "}";
+                writer << ", Shape{" << join(reshape->get_output_shape()) << "}";
             }
             else if (auto result = dynamic_pointer_cast<op::Result>(op))
             {
+            }
+            else if (auto cop = dynamic_pointer_cast<op::Convolution>(op))
+            {
+                writer << ", Strides{" << join(cop->get_window_movement_strides()) << "}";
+                writer << ", Strides{" << join(cop->get_window_dilation_strides()) << "}";
+                writer << ", CoordinateDiff{" << join(cop->get_padding_below()) << "}";
+                writer << ", CoordinateDiff{" << join(cop->get_padding_above()) << "}";
+                writer << ", Strides{" << join(cop->get_data_dilation_strides()) << "}";
+                writer << ", op::PadType::" << cop->get_pad_type();
+            }
+            else if (auto bn = dynamic_pointer_cast<op::BatchNormTraining>(op))
+            {
+                writer << ", " << bn->get_eps_value();
+            }
+            else if (auto goe = dynamic_pointer_cast<op::GetOutputElement>(op))
+            {
+                writer << ", " << goe->get_n();
+            }
+            else if (auto ap = dynamic_pointer_cast<op::AvgPool>(op))
+            {
+                writer << ", Shape{" << join(ap->get_window_shape()) << "}";
+                writer << ", Strides{" << join(ap->get_window_movement_strides()) << "}";
+                writer << ", Shape{" << join(ap->get_padding_below()) << "}";
+                writer << ", Shape{" << join(ap->get_padding_above()) << "}";
+                writer << ", " << ap->get_include_padding_in_avg_computation();
+                writer << ", op::PadType::" << ap->get_pad_type();
+                writer << ", " << ap->get_ceil_mode();
+            }
+            else if (auto cop = dynamic_pointer_cast<op::AvgPoolBackprop>(op))
+            {
+                throw runtime_error("Unsupported op '" + op->description() + "'");
+            }
+            else if (auto convert = dynamic_pointer_cast<op::Convert>(op))
+            {
+                writer << ", element::" << convert->get_element_type().get_type_name();
+            }
+            else if (auto oh = dynamic_pointer_cast<op::OneHot>(op))
+            {
+                writer << ", PartialShape{" << oh->get_shape() << "}";
+                writer << ", " << oh->get_one_hot_axis();
+            }
+            else if (auto dot = dynamic_pointer_cast<op::Dot>(op))
+            {
+                writer << ", " << dot->get_reduction_axes_count();
+                writer << ", " << dot->get_has_reduction_axes_count();
+            }
+            else if (auto cop = dynamic_pointer_cast<op::Softmax>(op))
+            {
+                writer << ", AxisSet{" << join(cop->get_axes()) << "}";
+            }
+            else if (auto cop = dynamic_pointer_cast<op::Select>(op))
+            {
+            }
+            else
+            {
+                NGRAPH_INFO << writer.get_code();
+                throw runtime_error("Unsupported op '" + op->description() + "'");
             }
             writer << ");\n";
         }
