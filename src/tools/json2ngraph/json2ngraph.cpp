@@ -17,10 +17,6 @@
 #include "json2ngraph.hpp"
 #include "ngraph/code_writer.hpp"
 #include "ngraph/log.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/serializer.hpp"
-#include "ngraph/util.hpp"
-#include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
 #include "ngraph/op/abs.hpp"
 #include "ngraph/op/acos.hpp"
 #include "ngraph/op/add.hpp"
@@ -38,6 +34,7 @@
 #include "ngraph/op/broadcast_distributed.hpp"
 #include "ngraph/op/ceiling.hpp"
 #include "ngraph/op/concat.hpp"
+#include "ngraph/op/constant.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/convert.hpp"
 #include "ngraph/op/convolution.hpp"
@@ -104,7 +101,10 @@
 #include "ngraph/op/tan.hpp"
 #include "ngraph/op/tanh.hpp"
 #include "ngraph/op/topk.hpp"
+#include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
 #include "ngraph/op/xor.hpp"
+#include "ngraph/serializer.hpp"
+#include "ngraph/util.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -171,7 +171,8 @@ void json2ngraph(istream& in, ostream& out)
         if (op->description() != "Parameter" && op->description() != "Constant")
         {
             NGRAPH_INFO << op->get_name();
-            writer << "auto " << to_variable(*op) << " = make_shared<op::" << op->description() << ">(";
+            writer << "auto " << to_variable(*op) << " = make_shared<op::" << op->description()
+                   << ">(";
             vector<string> input_strs;
             for (auto input : op->inputs())
             {
