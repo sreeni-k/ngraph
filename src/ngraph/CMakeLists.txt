@@ -14,6 +14,8 @@
 # limitations under the License.
 # ******************************************************************************
 
+add_definitions(-DIN_NGRAPH_LIBRARY)
+
 set (SRC
     assertion.hpp
     autodiff/adjoints.cpp

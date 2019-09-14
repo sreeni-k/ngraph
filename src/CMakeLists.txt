@@ -14,8 +14,6 @@
 # limitations under the License.
 # ******************************************************************************
 
-add_definitions(-DIN_NGRAPH_LIBRARY)
-
 include_directories(ngraph)
 
 add_subdirectory(resource)
