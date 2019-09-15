@@ -116,7 +116,7 @@ namespace ngraph
 
         inline std::ostream& operator<<(std::ostream& out, const PadType& pt)
         {
-            switch(pt)
+            switch (pt)
             {
             case PadType::EXPLICIT: out << "EXPLICIT"; break;
             case PadType::SAME_LOWER: out << "SAME_LOWER"; break;
