@@ -119,14 +119,14 @@ namespace ngraph
                 , m_axis(0)
             {
             }
-            AutoBroadcastSpec(AutoBroadcastType type, size_t axis)
+            AutoBroadcastSpec(AutoBroadcastType type, int64_t axis)
                 : m_type(type)
                 , m_axis(axis)
             {
             }
 
             AutoBroadcastType m_type; // Implicit broadcasting algorithm
-            size_t m_axis;            // Axis to start alignment on
+            int64_t m_axis;            // Axis to start alignment on
         };
     }
 }
