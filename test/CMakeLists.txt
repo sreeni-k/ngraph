@@ -431,7 +431,7 @@ if (NGRAPH_INTERPRETER_ENABLE)
 endif()
 
 if (NGRAPH_NGPU_ENABLE)
-    target_link_libraries(unit-test PRIVATE gpu_backend)
+    target_link_libraries(unit-test PRIVATE ngpu_backend)
 endif()
 
 if (NGRAPH_NOP_ENABLE)

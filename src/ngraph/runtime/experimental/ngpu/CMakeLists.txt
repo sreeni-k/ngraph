@@ -144,18 +144,18 @@ if (NGRAPH_NGPU_ENABLE)
         message(STATUS "Not precompiling static CUDA kernels via NVCC; runtime compilation via NVRTC will be used.")
     endif()
 
-    add_library(gpu_backend SHARED ${SRC} ${CUDA_OBJ})
-    target_compile_definitions(gpu_backend PRIVATE GPU_BACKEND_EXPORTS)
+    add_library(ngpu_backend SHARED ${SRC} ${CUDA_OBJ})
+    target_compile_definitions(ngpu_backend PRIVATE GPU_BACKEND_EXPORTS)
     if(NGRAPH_LIB_VERSIONING_ENABLE)
-        set_target_properties(gpu_backend PROPERTIES
+        set_target_properties(ngpu_backend PROPERTIES
             VERSION ${NGRAPH_VERSION}
             SOVERSION ${NGRAPH_API_VERSION})
     endif()
-    target_link_libraries(gpu_backend PUBLIC ngraph)
+    target_link_libraries(ngpu_backend PUBLIC ngraph)
     if (NGRAPH_DEX_ONLY)
-        target_compile_definitions(gpu_backend PRIVATE "NGRAPH_DEX_ONLY")
+        target_compile_definitions(ngpu_backend PRIVATE "NGRAPH_DEX_ONLY")
     else()
-        target_link_libraries(gpu_backend PUBLIC codegen)
+        target_link_libraries(ngpu_backend PUBLIC codegen)
     endif()
     find_library(CUDA_nvrtc_LIBRARY nvrtc
         PATH_SUFFIXES lib lib64 cuda/lib cuda/lib64 lib/x64)
@@ -165,8 +165,8 @@ if (NGRAPH_NGPU_ENABLE)
         PATH_SUFFIXES lib lib64 cuda/lib cuda/lib64 lib/x64)
 
     find_package(CUDNN 7 REQUIRED)
-    target_include_directories(gpu_backend SYSTEM PUBLIC ${CUDA_INCLUDE_DIRS} ${CUDNN_INCLUDE_DIR})
-    target_link_libraries(gpu_backend
+    target_include_directories(ngpu_backend SYSTEM PUBLIC ${CUDA_INCLUDE_DIRS} ${CUDNN_INCLUDE_DIR})
+    target_link_libraries(ngpu_backend
         PUBLIC
             ${CUDA_cuda_LIBRARY}
             ${CUDA_nvrtc_LIBRARY}
@@ -175,7 +175,7 @@ if (NGRAPH_NGPU_ENABLE)
             ${CUDA_CUBLAS_LIBRARIES}
             ${CUDNN_LIBRARIES})
 
-    install(TARGETS gpu_backend
+    install(TARGETS ngpu_backend
         ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB}
         LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB})
 endif()
