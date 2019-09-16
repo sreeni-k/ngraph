@@ -27,7 +27,7 @@ if (NGRAPH_INTELGPU_ENABLE)
     add_subdirectory(intelgpu)
 endif()
 
-if (NGRAPH_GPU_ENABLE)
+if (NGRAPH_NGPU_ENABLE)
     add_subdirectory(gpu)
 endif()
 
