@@ -19,7 +19,6 @@
 
 #include "lowerer.hpp"
 
-#include "compiler.hpp"
 #include "dialect/ops.hpp"
 #include "dialect/type.hpp"
 #include "ngraph/assertion.hpp"
@@ -35,6 +34,9 @@
 #include <mlir/Transforms/DialectConversion.h>
 
 #include <map>
+
+#define PASS_NAME "convert-ngraph-to-affine"
+#define DEBUG_TYPE PASS_NAME
 
 // anonymous namespace
 // no need to expose any of the following outside of this file
@@ -168,10 +170,7 @@ namespace
     class DialectLoweringPass : public ModulePass<DialectLoweringPass>
     {
     public:
-        DialectLoweringPass(ngmlir::MLIRCompiler& compiler)
-            : compiler(compiler)
-        {
-        }
+        DialectLoweringPass() {}
 
         void runOnModule() override;
         SmallVector<Value*, 4> buildOutputDefs(Operation* op, PatternRewriter& rewriter);
@@ -192,7 +191,6 @@ namespace
         NGraphTypeConverter typeConverter;
         // List of temporary memrefs to deallocate at end of function
         SmallVector<Value*, 4> memRefsToDealloc;
-        ngmlir::MLIRCompiler& compiler;
     };
 
     void DialectLoweringPass::runOnModule()
@@ -1191,8 +1189,11 @@ namespace
 
 namespace mlir
 {
-    std::unique_ptr<Pass> createDialectLoweringPass(ngraph::runtime::ngmlir::MLIRCompiler* compiler)
+    std::unique_ptr<Pass> createDialectLoweringPass()
     {
-        return std::make_unique<DialectLoweringPass>(*compiler);
+        return std::make_unique<DialectLoweringPass>();
     }
 } // namespace mlir
+
+static PassRegistration<DialectLoweringPass> pass(PASS_NAME,
+                                                  "Convert nGraph dialect to affine dialect");

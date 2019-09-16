@@ -336,7 +336,7 @@ void MLIRCompiler::lower_ng_dialect()
 {
     // Lower NG dialect to Affine
     mlir::PassManager pm(&m_context);
-    pm.addPass(mlir::createDialectLoweringPass(this));
+    pm.addPass(mlir::createDialectLoweringPass());
     pm.addPass(mlir::createCanonicalizerPass());
 
     // Apply any generic pass manager command line options.
