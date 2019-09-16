@@ -73,12 +73,28 @@ namespace ngraph
         ///              A: Shape(2, 1, 6)
         ///              B: Shape(   3, 1)
         ///         Result: Shape(2, 3, 6)
+        /// PDPD  - PaddlePaddle-style implicit broadcasting
+        ///         (https://github.com/PaddlePaddle/Paddle/blob/release/1.5/paddle/fluid/operators/elementwise/elementwise_op.h#L126)
+        ///         Broadcast B to match the shape of A, where axis is the start
+        ///         dimension index for broadcast B to A. If axis is -1 (default), i
+        ///         axis = rank(A) - rank(B). The trailing dimensions of size 1 for B wil be
+        ///         ignored.
+        ///
+        ///         E.g.,
+        ///              A: Shape(2, 3, 4, 5)
+        ///              B: Shape(   3, 4) witt axis =1
+        ///         Result: Shape(2, 3, 4, 5)
+        ///
+        ///              A: Shape(2, 3, 4, 5)
+        ///              B: Shape(2, 1) with axis = 1
+        ///         Result: Shape(2, 3, 4, 5)
         ///
         /// TODO: Add more implicit broadcast modes used by frameworks
         enum class AutoBroadcastType
         {
             NONE = 0,
-            NUMPY
+            NUMPY,
+            PDPD
         };
 
         /// \brief Specifies how eps is combined with L2 value
