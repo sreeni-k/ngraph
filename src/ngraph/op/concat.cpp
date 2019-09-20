@@ -17,109 +17,61 @@
 #include <memory>
 
 #include "ngraph/op/concat.hpp"
-#include "ngraph/op/constant.hpp"
 #include "ngraph/op/slice.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-const string op::Concat::type_name{"Concat"};
+constexpr NodeTypeInfo op::Concat::type_info;
 
-OutputVector OutputVectorAppend(const OutputVector& args, const Output<Node>& node)
-{
-    OutputVector new_args(args);
-    new_args.emplace_back(node);
-    return new_args;
-}
-
-op::Concat::Concat(const OutputVector& args, size_t concatenation_axis)
-    : Concat(args, op::Constant::create(element::i64, Shape{1}, {concatenation_axis})->output(0))
+op::Concat::Concat(const OutputVector& args, size_t axis)
+    : Op(args)
+    , m_axis(axis)
 {
     constructor_validate_and_infer_types();
 }
 
-op::Concat::Concat(const OutputVector& args, const Output<Node>& concatenation_axis)
-    : Op(OutputVectorAppend(args, concatenation_axis))
+op::Concat::Concat(const NodeVector& args, size_t axis)
+    : Concat(as_output_vector(args), axis)
 {
-    constructor_validate_and_infer_types();
-}
-
-op::Concat::Concat(const NodeVector& args, size_t concatenation_axis)
-    : Concat(as_output_vector(args), concatenation_axis)
-{
-}
-
-size_t op::Concat::get_concatenation_axis() const
-{
-    auto d = get_concatenation_axis_dynamic();
-    NGRAPH_CHECK(d.is_static(),
-                 "get_concatenation_axis called on Concat node whose 'concatenation_axis' input is "
-                 "not constant");
-    return static_cast<size_t>(d);
-}
-
-Dimension op::Concat::get_concatenation_axis_dynamic() const
-{
-    size_t n = this->get_input_size();
-    auto const_op = dynamic_pointer_cast<op::Constant>(input_value(n - 1).get_node_shared_ptr());
-    if (const_op)
-    {
-        return const_op->get_vector<int64_t>()[0];
-    }
-    else
-    {
-        return Dimension::dynamic();
-    }
-}
-
-void op::Concat::set_concatenation_axis(size_t concatenation_axis)
-{
-    size_t n = this->get_input_size();
-    this->input(n - 1).replace_source_output(
-        op::Constant::create(element::i64, Shape{1}, {concatenation_axis})->output(0));
 }
 
 void op::Concat::validate_and_infer_types()
 {
-    NODE_VALIDATION_CHECK(this, get_input_size() >= 2, "At least two arguments required.");
+    NODE_VALIDATION_CHECK(this, get_input_size() >= 1, "At least one argument required.");
 
     PartialShape inputs_shape_scheme{PartialShape::dynamic()};
     element::Type inputs_et{element::dynamic};
     Dimension concatenation_axis_output_dim{0};
-    Dimension dynamic_concatenation_axis = get_concatenation_axis_dynamic();
 
-    for (auto i = 0; i < get_input_size() - 1; i++)
+    for (uint64_t i = 0; i < get_input_size(); i++)
     {
         PartialShape this_input_shape = get_input_partial_shape(i);
         Dimension this_input_rank = this_input_shape.rank();
         if (this_input_rank.is_static())
         {
-            if (dynamic_concatenation_axis.is_static())
-            {
-                size_t m_concatenation_axis = static_cast<size_t>(dynamic_concatenation_axis);
-                NODE_VALIDATION_CHECK(this,
-                                      m_concatenation_axis < size_t(this_input_rank),
-                                      "Concatenation axis (",
-                                      m_concatenation_axis,
-                                      ") is out of bounds for ",
-                                      "argument ",
-                                      i,
-                                      ", which has shape ",
-                                      this_input_shape,
-                                      ".");
+            NODE_VALIDATION_CHECK(this,
+                                  m_axis < size_t(this_input_rank),
+                                  "Concatenation axis (",
+                                  m_axis,
+                                  ") is out of bounds for ",
+                                  "argument ",
+                                  i,
+                                  ", which has shape ",
+                                  this_input_shape,
+                                  ".");
 
-                concatenation_axis_output_dim += this_input_shape[m_concatenation_axis];
-                this_input_shape[m_concatenation_axis] = Dimension::dynamic();
+            concatenation_axis_output_dim += this_input_shape[m_axis];
+            this_input_shape[m_axis] = Dimension::dynamic();
 
-                NODE_VALIDATION_CHECK(
-                    this,
-                    PartialShape::merge_into(inputs_shape_scheme, this_input_shape),
-                    "Argument shapes are inconsistent; they must have the same rank, and must "
-                    "have ",
-                    "equal dimension everywhere except on the concatenation axis (axis ",
-                    m_concatenation_axis,
-                    ").");
-            }
+            NODE_VALIDATION_CHECK(
+                this,
+                PartialShape::merge_into(inputs_shape_scheme, this_input_shape),
+                "Argument shapes are inconsistent; they must have the same rank, and must have ",
+                "equal dimension everywhere except on the concatenation axis (axis ",
+                m_axis,
+                ").");
+
             NODE_VALIDATION_CHECK(
                 this,
                 element::Type::merge(inputs_et, inputs_et, get_input_element_type(i)),
@@ -133,10 +85,9 @@ void op::Concat::validate_and_infer_types()
 
     PartialShape concatenated_shape = inputs_shape_scheme;
 
-    if (concatenated_shape.rank().is_static() && dynamic_concatenation_axis.is_static())
+    if (concatenated_shape.rank().is_static())
     {
-        size_t m_concatenation_axis = static_cast<size_t>(dynamic_concatenation_axis);
-        concatenated_shape[m_concatenation_axis] = concatenation_axis_output_dim;
+        concatenated_shape[m_axis] = concatenation_axis_output_dim;
     }
 
     set_output_type(0, inputs_et, concatenated_shape);
@@ -145,14 +96,11 @@ void op::Concat::validate_and_infer_types()
 shared_ptr<Node> op::Concat::copy_with_new_args(const NodeVector& new_args) const
 {
     // TODO(amprocte): Should we check the new_args count here?
-    size_t m_concatenation_axis = get_concatenation_axis();
-    return make_shared<Concat>(new_args, m_concatenation_axis);
+    return make_shared<Concat>(new_args, m_axis);
 }
 
 void op::Concat::generate_adjoints(autodiff::Adjoints& adjoints, const NodeVector& deltas)
 {
-    // TODO(baojun-nervana) Need to handle dynamic m_concatenation_axis;
-    size_t m_concatenation_axis = get_concatenation_axis();
     auto delta = deltas.at(0);
 
     auto concat_result_shape = output(0).get_shape();
@@ -167,12 +115,12 @@ void op::Concat::generate_adjoints(autodiff::Adjoints& adjoints, const NodeVecto
     {
         auto arg_shape = value.get_shape();
 
-        auto slice_width = arg_shape[m_concatenation_axis];
+        auto slice_width = arg_shape[m_axis];
 
         size_t next_pos = pos + slice_width;
 
-        arg_delta_slice_lower[m_concatenation_axis] = pos;
-        arg_delta_slice_upper[m_concatenation_axis] = next_pos;
+        arg_delta_slice_lower[m_axis] = pos;
+        arg_delta_slice_upper[m_axis] = next_pos;
 
         adjoints.add_delta(
             value,
