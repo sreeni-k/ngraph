@@ -22,7 +22,7 @@ using namespace ngraph;
 
 static string to_variable(const Node& n)
 {
-    return to_lower(n.get_name());
+    return n.get_friendly_name();
 }
 
 void json2ngraph(istream& in, ostream& out)
@@ -33,6 +33,8 @@ void json2ngraph(istream& in, ostream& out)
 
     // Construct all shapes used in the model
     map<Shape, string> shape_names;
+    vector<string> parameter_list;
+    vector<string> result_list;
     for (const shared_ptr<Node>& op : f->get_ops())
     {
         if (op->description() == "Parameter" || op->description() == "Constant")
@@ -43,6 +45,14 @@ void json2ngraph(istream& in, ostream& out)
                 static size_t shape_index = 0;
                 shape_names.insert({shape, "shape_" + to_string(shape_index++)});
             }
+        }
+        if (op->description() == "Parameter")
+        {
+            parameter_list.push_back(to_variable(*op));
+        }
+        if (op->description() == "Result")
+        {
+            result_list.push_back(to_variable(*op));
         }
     }
 
@@ -253,6 +263,21 @@ void json2ngraph(istream& in, ostream& out)
             writer << ");\n";
         }
     }
+
+    writer << "\n// Create function\n";
+    writer << "ParameterVector parameters = {\n";
+    for (const shared_ptr<op::Parameter>& parameter : f->get_parameters())
+    {
+        writer << "    " << to_variable(*parameter) << ",\n";
+    }
+    writer << "};\n";
+    writer << "ResultVector results = {\n";
+    for (const shared_ptr<op::Result>& result : f->get_results())
+    {
+        writer << "    " << to_variable(*result) << ",\n";
+    }
+    writer << "};\n";
+    writer << "auto f = make_shared<Function>(results, parameters);\n";
 
     writer.block_end();
 
