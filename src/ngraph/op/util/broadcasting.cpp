@@ -203,7 +203,7 @@ static std::shared_ptr<ngraph::Node> broadcast_value_pdpd_style(
     }
 
     ngraph::AxisSet axes;
-    for (size_t i = 0; i < axis; ++i) 
+    for (size_t i = 0; i < axis; ++i)
     {
         axes.insert(i);
     }
@@ -213,8 +213,7 @@ static std::shared_ptr<ngraph::Node> broadcast_value_pdpd_style(
         axes.insert(i);
     }
 
-    auto value_bcast = std::make_shared<ngraph::op::Broadcast>(
-        value, output_shape, axes);
+    auto value_bcast = std::make_shared<ngraph::op::Broadcast>(value, output_shape, axes);
 
     return value_bcast;
 }
