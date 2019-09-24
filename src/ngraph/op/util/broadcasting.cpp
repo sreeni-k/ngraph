@@ -202,27 +202,21 @@ static std::shared_ptr<ngraph::Node> broadcast_value_pdpd_style(
         trimmed_value_shape.pop_back();
     }
 
-    size_t pre = 1, mid = ngraph::shape_size(value_shape), post = 1;
-    for (int64_t i = 0; i < axis; ++i)
+    ngraph::AxisSet axes;
+    for (size_t i = 0; i < axis; ++i) 
     {
-        pre *= output_shape[i];
+        axes.insert(i);
     }
 
     for (size_t i = axis + trimmed_value_shape.size(); i < output_shape.size(); ++i)
     {
-        post *= output_shape[i];
+        axes.insert(i);
     }
 
-    auto value_reshape = std::make_shared<ngraph::op::Reshape>(
-        value, ngraph::get_default_order(value_shape.size()), ngraph::Shape{mid});
-
     auto value_bcast = std::make_shared<ngraph::op::Broadcast>(
-        value_reshape, ngraph::Shape{pre, mid, post}, ngraph::AxisSet{0, 2});
+        value, output_shape, axes);
 
-    std::shared_ptr<ngraph::Node> value_bcast_reshape = std::make_shared<ngraph::op::Reshape>(
-        value_bcast, ngraph::get_default_order(value_bcast->get_shape().size()), output_shape);
-
-    return value_bcast_reshape;
+    return value_bcast;
 }
 
 namespace ngraph
